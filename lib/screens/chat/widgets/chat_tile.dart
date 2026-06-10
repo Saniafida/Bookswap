@@ -21,7 +21,7 @@ class ChatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final participantName = chat.participantName ?? 'BookSwap Reader';
+    final participantName = chat.participantName ?? 'Swaply User';
     final avatarUrl = chat.participantAvatarUrl;
     final initials = participantName.isNotEmpty
         ? participantName.substring(0, 1).toUpperCase()

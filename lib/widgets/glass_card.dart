@@ -1,7 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_sizes.dart';
 
+/// Swaply glass card — frosted cream/white glass morphism card.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -30,43 +32,29 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final card = Container(
-      height: height,
-      width: width,
-      margin: margin ?? EdgeInsets.zero,
-      padding: padding ?? AppSizes.cardPadding,
-      decoration: BoxDecoration(
-        color: backgroundColor ??
-            (isDark
-                ? const Color(0xFF232340).withValues(alpha: 0.55)
-                : Colors.white.withValues(alpha: 0.85)),
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: hasBorder
-            ? Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : AppColors.border.withValues(alpha: 0.4),
-                width: 0.5,
-              )
-            : null,
-        boxShadow: boxShadow ??
-            (isDark
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.30),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : AppColors.softShadow),
+    final card = ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          height: height,
+          width: width,
+          margin: margin ?? EdgeInsets.zero,
+          padding: padding ?? AppSizes.cardPadding,
+          decoration: BoxDecoration(
+            color: backgroundColor ?? Colors.white.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: hasBorder
+                ? Border.all(
+                    color: AppColors.border.withValues(alpha: 0.60),
+                    width: 1,
+                  )
+                : null,
+            boxShadow: boxShadow ?? AppColors.cardShadow,
+          ),
+          child: child,
+        ),
       ),
-      child: child,
     );
 
     if (onTap != null) {

@@ -10,7 +10,6 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/premium_button.dart';
 import '../../../widgets/premium_dialogs.dart';
-import '../../../widgets/premium_textfield.dart';
 
 class AdminCategoriesScreen extends StatefulWidget {
   const AdminCategoriesScreen({super.key});
@@ -33,7 +32,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
       context: context,
       builder: (context) => AdminConfirmDialog(
         title: 'Delete Category',
-        content: 'Are you sure you want to delete the category "${category.name}"? This might impact filtering for books with this category.',
+        content: 'Are you sure you want to delete the category "${category.name}"? This might impact filtering for listings with this category.',
         confirmLabel: 'Delete',
         isDangerous: true,
       ),
@@ -46,10 +45,11 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     }
   }
 
-  void _toggleActive(BuildContext context, CategoryModel category, bool active) async {
-    final success = await context.read<AdminCategoryProvider>().toggleActive(category.id, active: active);
+  void _toggleFeatured(BuildContext context, CategoryModel category, bool featured) async {
+    final updated = category.copyWith(isFeatured: featured);
+    final success = await context.read<AdminCategoryProvider>().updateCategory(updated);
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Category is now ${active ? 'active' : 'inactive'}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Category is now ${featured ? 'featured' : 'unfeatured'}')));
     }
   }
 
@@ -94,7 +94,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
           return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Categories Management', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
             const SizedBox(height: AppSizes.s4),
-            Text('Create and moderate book genres/categories for platform search.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
+            Text('Manage listing categories, featured status, and display ordering.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: AppSizes.s12),
             addBtn,
           ]);
@@ -105,7 +105,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Categories Management', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               const SizedBox(height: AppSizes.s4),
-              Text('Create and moderate book genres/categories for platform search.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
+              Text('Manage listing categories, featured status, and display ordering.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
             ]),
             addBtn,
           ],
@@ -165,35 +165,66 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
               ),
               const SizedBox(width: AppSizes.s12),
               Expanded(child: Text(category.name, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              Switch(
-                value: category.isActive,
-                activeColor: AppColors.primary,
-                activeTrackColor: AppColors.primaryLight,
-                inactiveThumbColor: isDark ? AppColors.textMutedDark : AppColors.textMuted,
-                inactiveTrackColor: isDark ? AppColors.borderDark : AppColors.border,
-                onChanged: (val) => _toggleActive(context, category, val),
-              ),
             ],
           ),
           const Spacer(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8, vertical: AppSizes.s3),
-                decoration: BoxDecoration(color: category.isActive ? AppColors.success.withValues(alpha: 0.1) : (isDark ? AppColors.borderDark.withValues(alpha: 0.3) : AppColors.border.withValues(alpha: 0.5)), borderRadius: BorderRadius.circular(AppSizes.radiusXs)),
-                child: Text(category.isActive ? 'Active' : 'Inactive', style: GoogleFonts.poppins(color: category.isActive ? AppColors.success : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondary), fontSize: 9, fontWeight: FontWeight.w700)),
-              ),
-              Row(children: [
-                IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: AppSizes.iconSm), tooltip: 'Edit', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _showAddEditSheet(context, category: category)),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8, vertical: AppSizes.s3),
+                  decoration: BoxDecoration(color: category.isActive ? AppColors.success.withValues(alpha: 0.1) : (isDark ? AppColors.borderDark.withValues(alpha: 0.3) : AppColors.border.withValues(alpha: 0.5)), borderRadius: BorderRadius.circular(AppSizes.radiusXs)),
+                  child: Text(category.isActive ? 'Active' : 'Inactive', style: GoogleFonts.poppins(color: category.isActive ? AppColors.success : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondary), fontSize: 9, fontWeight: FontWeight.w700)),
+                ),
+                if (category.isFeatured) ...[
+                  const SizedBox(width: AppSizes.s6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8, vertical: AppSizes.s3),
+                    decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppSizes.radiusXs)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.star_rounded, size: 8, color: AppColors.warning),
+                      const SizedBox(width: 2),
+                      Text('Featured', style: GoogleFonts.poppins(color: AppColors.warning, fontSize: 9, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                ],
                 const SizedBox(width: AppSizes.s12),
-                IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: AppSizes.iconSm), tooltip: 'Delete', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _confirmDelete(context, category)),
-              ]),
-            ],
+                _buildIconBtn(Icons.star_outline_rounded, category.isFeatured ? AppColors.warning : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondary), category.isFeatured ? 'Unfeature' : 'Feature', () => _toggleFeatured(context, category, !category.isFeatured)),
+                const SizedBox(width: AppSizes.s4),
+                _buildIconBtn(Icons.touch_app_rounded, AppColors.primary, 'Edit Display Order', null, popupMenu: List.generate(10, (i) => PopupMenuItem<int>(value: i, child: Text('Order $i', style: GoogleFonts.poppins(fontSize: 13)))), onSelected: (order) => _updateDisplayOrder(context, category, order as int)),
+                _buildIconBtn(Icons.edit_outlined, AppColors.primary, 'Edit', () => _showAddEditSheet(context, category: category)),
+                _buildIconBtn(Icons.delete_outline_rounded, AppColors.error, 'Delete', () => _confirmDelete(context, category)),
+              ],
+            ),
           ),
+          const SizedBox(height: AppSizes.s4),
+          Text('Display Order: ${category.displayOrder}', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w500)),
         ],
       ),
     );
+  }
+
+  Widget _buildIconBtn(IconData icon, Color color, String tooltip, VoidCallback? onPressed, {List<PopupMenuItem>? popupMenu, Function(dynamic)? onSelected}) {
+    if (popupMenu != null) {
+      return PopupMenuButton(
+        icon: Icon(icon, color: color, size: AppSizes.iconSm),
+        tooltip: tooltip,
+        constraints: const BoxConstraints(),
+        padding: EdgeInsets.zero,
+        onSelected: onSelected,
+        itemBuilder: (context) => popupMenu,
+      );
+    }
+    return IconButton(icon: Icon(icon, color: color, size: AppSizes.iconSm), tooltip: tooltip, constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: onPressed);
+  }
+
+  void _updateDisplayOrder(BuildContext context, CategoryModel category, int order) async {
+    final updated = category.copyWith(displayOrder: order);
+    final success = await context.read<AdminCategoryProvider>().updateCategory(updated);
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Display order updated to $order')));
+    }
   }
 
   IconData _getIconData(String? name) {
@@ -226,6 +257,8 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _iconController;
   late final TextEditingController _colorController;
+  late final TextEditingController _orderController;
+  bool _isFeatured = false;
   bool _isSaving = false;
 
   @override
@@ -234,6 +267,8 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
     _nameController = TextEditingController(text: widget.category?.name ?? '');
     _iconController = TextEditingController(text: widget.category?.icon ?? 'book');
     _colorController = TextEditingController(text: widget.category?.color ?? '#2563EB');
+    _orderController = TextEditingController(text: (widget.category?.displayOrder ?? 0).toString());
+    _isFeatured = widget.category?.isFeatured ?? false;
   }
 
   @override
@@ -241,6 +276,7 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
     _nameController.dispose();
     _iconController.dispose();
     _colorController.dispose();
+    _orderController.dispose();
     super.dispose();
   }
 
@@ -250,13 +286,14 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
     final name = _nameController.text.trim();
     final icon = _iconController.text.trim();
     final color = _colorController.text.trim();
+    final displayOrder = int.tryParse(_orderController.text) ?? 0;
     final provider = context.read<AdminCategoryProvider>();
     bool success;
     if (widget.category != null) {
-      final updated = widget.category!.copyWith(name: name, icon: icon, color: color);
+      final updated = widget.category!.copyWith(name: name, icon: icon, color: color, isFeatured: _isFeatured, displayOrder: displayOrder);
       success = await provider.updateCategory(updated);
     } else {
-      final newCat = CategoryModel(id: '', name: name, icon: icon, color: color, isActive: true, createdAt: DateTime.now());
+      final newCat = CategoryModel(id: '', name: name, icon: icon, color: color, isActive: true, isFeatured: _isFeatured, displayOrder: displayOrder, createdAt: DateTime.now());
       success = await provider.addCategory(newCat);
     }
     setState(() => _isSaving = false);
@@ -352,6 +389,36 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
                       },
                     ),
                   ]),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.s16),
+            _buildLabel('Display Order'),
+            const SizedBox(height: AppSizes.s8),
+            TextFormField(
+              controller: _orderController,
+              keyboardType: TextInputType.number,
+              style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 14),
+                filled: true,
+                fillColor: isDark ? AppColors.bgSurfaceDark.withValues(alpha: 0.5) : AppColors.bgSurface.withValues(alpha: 0.3),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm), borderSide: BorderSide(color: (isDark ? AppColors.borderDark : AppColors.border).withValues(alpha: 0.6))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm), borderSide: BorderSide(color: (isDark ? AppColors.borderDark : AppColors.border).withValues(alpha: 0.6))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.s16, vertical: AppSizes.s14),
+              ),
+            ),
+            const SizedBox(height: AppSizes.s12),
+            Row(
+              children: [
+                _buildLabel('Featured Category'),
+                const SizedBox(width: AppSizes.s12),
+                Switch(
+                  value: _isFeatured,
+                  activeColor: AppColors.warning,
+                  onChanged: (val) => setState(() => _isFeatured = val),
                 ),
               ],
             ),

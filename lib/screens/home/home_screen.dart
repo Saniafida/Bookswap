@@ -3,13 +3,24 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
-import '../../providers/post_provider.dart';
+import '../../data/models/listing_model.dart';
+import '../../providers/home_provider.dart';
+import '../../providers/listing_provider.dart';
 import '../../providers/announcement_provider.dart';
+import '../../providers/category_provider.dart';
 import '../../widgets/announcement_banner.dart';
 import '../../widgets/premium_button.dart';
+import '../../widgets/listing_card.dart';
+import '../../widgets/swaply_background.dart';
+import '../search/widgets/search_book_card.dart';
 import 'widgets/category_list.dart';
 import 'widgets/home_header.dart';
-import 'widgets/post_card.dart';
+
+class _HomeSection {
+  final String title;
+  final List<ListingModel> listings;
+  const _HomeSection(this.title, this.listings);
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +31,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
-  String _selectedCategory = 'All Books';
+  String? _selectedCategoryId;
+  String? _typeFilter;
+  String? _conditionFilter;
+  double? _priceMin;
+  double? _priceMax;
   final ScrollController _scrollController = ScrollController();
   bool _showScrollTopBtn = false;
 
@@ -28,10 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final p = Provider.of<PostProvider>(context, listen: false);
-      p.fetchPosts();
-      p.subscribeToPosts();
-      final ap = Provider.of<AnnouncementProvider>(context, listen: false);
+      final hp = context.read<HomeProvider>();
+      hp.fetchHomeData();
+      final lp = context.read<ListingProvider>();
+      lp.fetchListings();
+      lp.subscribeToListings();
+      final ap = context.read<AnnouncementProvider>();
       ap.fetchAnnouncements();
       ap.subscribeToAnnouncements();
     });
@@ -47,13 +64,44 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    Provider.of<PostProvider>(context, listen: false).unsubscribePosts();
-    Provider.of<AnnouncementProvider>(context, listen: false)
-        .unsubscribeFromAnnouncements();
+    context.read<ListingProvider>().unsubscribeListings();
+    context.read<AnnouncementProvider>().unsubscribeFromAnnouncements();
     _scrollController
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
+  }
+
+  Future<void> _onRefresh() async {
+    await Future.wait([
+      context.read<HomeProvider>().refreshHome(),
+      context.read<ListingProvider>().fetchListings(refresh: true),
+    ]);
+  }
+
+  List<ListingModel> _filteredListings(ListingProvider provider) {
+    return provider.listings.where((l) {
+      final q = _searchQuery.toLowerCase().trim();
+      final matchSearch = q.isEmpty ||
+          l.title.toLowerCase().contains(q) ||
+          (l.description?.toLowerCase().contains(q) ?? false) ||
+          (l.ownerName?.toLowerCase().contains(q) ?? false);
+
+      final matchCategory = _selectedCategoryId == null ||
+          l.categoryId == _selectedCategoryId;
+
+      final matchType = _typeFilter == null || l.listingType == _typeFilter;
+      final matchCondition =
+          _conditionFilter == null || l.condition == _conditionFilter;
+      final matchPrice = (_priceMin == null || (l.price ?? 0) >= _priceMin!) &&
+          (_priceMax == null || (l.price ?? double.infinity) <= _priceMax!);
+
+      return matchSearch &&
+          matchCategory &&
+          matchType &&
+          matchCondition &&
+          matchPrice;
+    }).toList();
   }
 
   @override
@@ -62,201 +110,273 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: () =>
-                  Provider.of<PostProvider>(context, listen: false)
-                      .fetchPosts(),
-              color: theme.colorScheme.primary,
-              backgroundColor:
-                  isDark ? theme.colorScheme.surface : Colors.white,
-              strokeWidth: 2.5,
-              displacement: 24,
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Consumer<AnnouncementProvider>(
-                      builder: (_, ap, __) {
-                        if (!ap.hasVisible) return const SizedBox.shrink();
-                        final a = ap.topAnnouncement!;
-                        return AnnouncementBanner(
-                          message: a.title,
+      body: SwaplyBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+            Positioned.fill(
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: AppColors.primary,
+                backgroundColor: Colors.white,
+                strokeWidth: 2.5,
+                displacement: 24,
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Consumer<AnnouncementProvider>(
+                        builder: (_, ap, __) {
+                          if (!ap.hasVisible) return const SizedBox.shrink();
+                          final a = ap.topAnnouncement!;
+                          return AnnouncementBanner(message: a.title);
+                        },
+                      ),
+                    ),
+  
+                    SliverToBoxAdapter(
+                      child: HomeHeader(
+                        onSearchChanged: (q) =>
+                            setState(() => _searchQuery = q),
+                        onFilterPressed: () =>
+                            _showFilterSheet(context, theme),
+                      ),
+                    ),
+  
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: AppSizes.s12),
+                        child: CategoryList(
+                          onCategorySelected: (id) =>
+                              setState(() => _selectedCategoryId = id),
+                        ),
+                      ),
+                    ),
+  
+                    Consumer<HomeProvider>(
+                      builder: (context, home, _) {
+                        if (home.isLoading && home.status == HomeStatus.loading) {
+                          return SliverToBoxAdapter(
+                            child: _buildShimmerSections(),
+                          );
+                        }
+                        if (home.status == HomeStatus.error) {
+                          return SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _ErrorState(
+                              message: home.errorMessage,
+                              onRetry: () => home.fetchHomeData(),
+                            ),
+                          );
+                        }
+  
+                        final sections = <_HomeSection>[
+                          if (home.featuredListings.isNotEmpty)
+                            _HomeSection('Featured', home.featuredListings),
+                          if (home.popularListings.isNotEmpty)
+                            _HomeSection('Popular', home.popularListings),
+                          if (home.recentListings.isNotEmpty)
+                            _HomeSection('Recently Added', home.recentListings),
+                        ];
+  
+                        return SliverList(
+                          delegate: SliverChildListDelegate(
+                            sections
+                                .map((s) => _SectionRow(
+                                      title: s.title,
+                                      listings: s.listings,
+                                      isDark: isDark,
+                                      theme: theme,
+                                    ))
+                                .toList(),
+                          ),
                         );
                       },
                     ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: HomeHeader(
-                      onSearchChanged: (q) =>
-                          setState(() => _searchQuery = q.toLowerCase()),
-                      onFilterPressed: () =>
-                          _showFilterSheet(context, theme),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.s12),
-                      child: CategoryList(
-                        onCategorySelected: (c) =>
-                            setState(() => _selectedCategory = c),
-                      ),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          AppSizes.s20, 0, AppSizes.s20, AppSizes.s8),
-                      child: Row(
-                        children: [
-                          Text(
-                            _selectedCategory == 'All Books'
-                                ? 'Latest Listings'
-                                : _selectedCategory,
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.3,
-                              color: isDark
-                                  ? Colors.white
-                                  : AppColors.textPrimary,
+  
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSizes.s20, AppSizes.s16, AppSizes.s20, AppSizes.s8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'All Listings',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.3,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          Consumer<PostProvider>(
-                            builder: (_, p, __) {
-                              if (p.posts.isEmpty) return const SizedBox();
-                              final count = _filteredPosts(p).length;
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSizes.s10,
-                                    vertical: AppSizes.s4),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary
-                                      .withValues(alpha: 0.08),
-                                  borderRadius:
-                                      BorderRadius.circular(AppSizes.radiusFull),
-                                ),
-                                child: Text(
-                                  '$count result${count == 1 ? '' : 's'}',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.primary,
+                            const Spacer(),
+                            Consumer<ListingProvider>(
+                              builder: (_, lp, __) {
+                                if (lp.listings.isEmpty) return const SizedBox();
+                                final count = _filteredListings(lp).length;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSizes.s10,
+                                      vertical: AppSizes.s4),
+                                  decoration: BoxDecoration(
+                                    gradient: AppColors.primaryGradient,
+                                    borderRadius: BorderRadius.circular(
+                                        AppSizes.radiusFull),
+                                    boxShadow: AppColors.primaryGlowShadow,
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
+                                  child: Text(
+                                    '$count result${count == 1 ? '' : 's'}',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-
-                  Consumer<PostProvider>(
-                    builder: (context, provider, _) {
-                      if (provider.isLoading && provider.posts.isEmpty) {
+  
+                    Consumer<ListingProvider>(
+                      builder: (context, provider, _) {
+                        if (provider.isLoading &&
+                            provider.listings.isEmpty) {
+                          return SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (_, i) => _ShimmerCard(
+                                  isDark: theme.brightness == Brightness.dark),
+                              childCount: 3,
+                            ),
+                          );
+                        }
+  
+                        if (provider.status == ListingsLoadState.error) {
+                          return SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _ErrorState(
+                              message: provider.errorMessage,
+                              onRetry: () =>
+                                  provider.fetchListings(refresh: true),
+                            ),
+                          );
+                        }
+  
+                        final listings = _filteredListings(provider);
+  
+                        if (listings.isEmpty) {
+                          return SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _EmptyState(
+                              searchQuery: _searchQuery,
+                              hasFilter: _selectedCategoryId != null ||
+                                  _typeFilter != null ||
+                                  _conditionFilter != null,
+                            ),
+                          );
+                        }
+  
                         return SliverList(
                           delegate: SliverChildBuilderDelegate(
-                            (_, i) => _ShimmerCard(isDark: theme.brightness == Brightness.dark),
-                            childCount: 3,
+                            (context, index) {
+                              final isLast = index == listings.length - 1;
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                    bottom: isLast ? 120 : 0),
+                                child: ListingCard(listing: listings[index]),
+                              );
+                            },
+                            childCount: listings.length,
                           ),
                         );
-                      }
-
-                      if (provider.status == PostStatus.error) {
-                        return SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _ErrorState(
-                            message: provider.errorMessage,
-                            onRetry: () => provider.fetchPosts(),
-                          ),
-                        );
-                      }
-
-                      final posts = _filteredPosts(provider);
-
-                      if (posts.isEmpty) {
-                        return SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _EmptyState(
-                            searchQuery: _searchQuery,
-                            category: _selectedCategory,
-                          ),
-                        );
-                      }
-
-                      return SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final isLast = index == posts.length - 1;
-                            return Padding(
-                              padding: EdgeInsets.only(
-                                  bottom: isLast ? 120 : 0),
-                              child: PostCard(post: posts[index]),
-                            );
-                          },
-                          childCount: posts.length,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              bottom: _showScrollTopBtn ? 110 : -60,
-              right: AppSizes.s20,
-              child: AnimatedOpacity(
-                opacity: _showScrollTopBtn ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 250),
-                child: FloatingActionButton.small(
-                  heroTag: 'scroll_top',
-                  onPressed: () => _scrollController.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeOutCubic,
-                  ),
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  child: const Icon(Icons.keyboard_arrow_up_rounded,
-                      size: AppSizes.iconMd),
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+  
+            AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                bottom: _showScrollTopBtn ? 110 : -60,
+                right: AppSizes.s20,
+                child: AnimatedOpacity(
+                  opacity: _showScrollTopBtn ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 250),
+                  child: FloatingActionButton.small(
+                    heroTag: 'scroll_top',
+                    onPressed: () => _scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                    ),
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    child: const Icon(Icons.keyboard_arrow_up_rounded,
+                        size: AppSizes.iconMd),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  List _filteredPosts(PostProvider provider) {
-    return provider.posts.where((post) {
-      final q = _searchQuery;
-      final matchSearch = q.isEmpty ||
-          post.title.toLowerCase().contains(q) ||
-          post.author.toLowerCase().contains(q) ||
-          (post.description?.toLowerCase().contains(q) ?? false);
+  Widget _buildShimmerSections() {
+    return Column(
+      children: [
+        _buildShimmerRow(),
+        _buildShimmerRow(),
+      ],
+    );
+  }
 
-      final matchCategory = _selectedCategory == 'All Books' ||
-          (post.category?.toLowerCase() ==
-              _selectedCategory.toLowerCase());
-
-      return matchSearch && matchCategory;
-    }).toList();
+  Widget _buildShimmerRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSizes.s20, AppSizes.s16, AppSizes.s20, AppSizes.s12),
+          child: Container(
+            width: 140,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppSizes.s4),
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.s16),
+            itemCount: 4,
+            itemBuilder: (_, __) {
+              return Container(
+                width: 180,
+                margin: const EdgeInsets.only(right: AppSizes.s12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   void _showFilterSheet(BuildContext context, ThemeData theme) {
@@ -266,11 +386,101 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       backgroundColor:
           isDark ? theme.colorScheme.surface : Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppSizes.radiusXl)),
       ),
-      builder: (ctx) => _FilterSheet(theme: theme, isDark: isDark),
+      builder: (ctx) => _FilterSheet(
+        theme: theme,
+        isDark: isDark,
+        selectedType: _typeFilter,
+        selectedCondition: _conditionFilter,
+        minPrice: _priceMin,
+        maxPrice: _priceMax,
+        onApply: (type, condition, minPrice, maxPrice) {
+          setState(() {
+            _typeFilter = type;
+            _conditionFilter = condition;
+            _priceMin = minPrice;
+            _priceMax = maxPrice;
+          });
+        },
+      ),
+    );
+  }
+}
+
+class _SectionRow extends StatelessWidget {
+  final String title;
+  final List<ListingModel> listings;
+  final bool isDark;
+  final ThemeData theme;
+
+  const _SectionRow({
+    required this.title,
+    required this.listings,
+    required this.isDark,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSizes.s20, AppSizes.s16, AppSizes.s20, AppSizes.s12),
+          child: Row(
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {},
+                child: ShaderMask(
+                  shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
+                  child: Text(
+                    'See all',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 240,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.s16),
+            physics: const BouncingScrollPhysics(),
+            itemCount: listings.length,
+            itemBuilder: (context, index) {
+              final listing = listings[index];
+              return SizedBox(
+                width: 160,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: AppSizes.s12),
+                  child: SearchBookCard(listing: listing),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -278,7 +488,26 @@ class _HomeScreenState extends State<HomeScreen> {
 class _FilterSheet extends StatefulWidget {
   final ThemeData theme;
   final bool isDark;
-  const _FilterSheet({required this.theme, required this.isDark});
+  final String? selectedType;
+  final String? selectedCondition;
+  final double? minPrice;
+  final double? maxPrice;
+  final void Function(
+    String? type,
+    String? condition,
+    double? minPrice,
+    double? maxPrice,
+  ) onApply;
+
+  const _FilterSheet({
+    required this.theme,
+    required this.isDark,
+    this.selectedType,
+    this.selectedCondition,
+    this.minPrice,
+    this.maxPrice,
+    required this.onApply,
+  });
 
   @override
   State<_FilterSheet> createState() => _FilterSheetState();
@@ -287,13 +516,46 @@ class _FilterSheet extends StatefulWidget {
 class _FilterSheetState extends State<_FilterSheet> {
   int _typeIndex = 0;
   int _conditionIndex = 0;
+  int _categoryIndex = 0;
+  final TextEditingController _minCtrl = TextEditingController();
+  final TextEditingController _maxCtrl = TextEditingController();
 
-  final _types = ['All', 'Swap', 'Sell', 'Swap/Sell'];
-  final _conditions = ['Any', 'Brand New', 'Like New', 'Good', 'Fair'];
+  final _types = ['All', 'sell', 'exchange', 'donate', 'sell_exchange'];
+  final _typeLabels = ['All', 'Sell', 'Exchange', 'Donate', 'Sell / Exchange'];
+  final _conditions = ['', 'brandNew', 'likeNew', 'good', 'fair', 'poor'];
+  final _conditionLabels = ['Any', 'Brand New', 'Like New', 'Good', 'Fair', 'Poor'];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selectedType != null) {
+      final idx = _types.indexOf(widget.selectedType!);
+      if (idx >= 0) _typeIndex = idx;
+    }
+    if (widget.selectedCondition != null) {
+      final idx = _conditions.indexOf(widget.selectedCondition!);
+      if (idx >= 0) _conditionIndex = idx;
+    }
+    if (widget.minPrice != null) {
+      _minCtrl.text = widget.minPrice!.toStringAsFixed(0);
+    }
+    if (widget.maxPrice != null) {
+      _maxCtrl.text = widget.maxPrice!.toStringAsFixed(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _minCtrl.dispose();
+    _maxCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = widget.theme;
+    final isDark = widget.isDark;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -313,25 +575,174 @@ class _FilterSheetState extends State<_FilterSheet> {
               ),
             ),
             const SizedBox(height: AppSizes.s16),
-            Text(
-              'Filter Listings',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-                color: widget.isDark ? Colors.white : AppColors.textPrimary,
-              ),
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    'Filter Listings',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _typeIndex = 0;
+                      _conditionIndex = 0;
+                      _categoryIndex = 0;
+                      _minCtrl.clear();
+                      _maxCtrl.clear();
+                    });
+                  },
+                  child: Text(
+                    'Reset',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: t.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSizes.s20),
-            _filterSection('Listing Type', _types, _typeIndex,
-                (i) => setState(() => _typeIndex = i), t),
-            const SizedBox(height: AppSizes.s16),
-            _filterSection('Condition', _conditions, _conditionIndex,
-                (i) => setState(() => _conditionIndex = i), t),
-            const SizedBox(height: AppSizes.s24),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _filterSection('Listing Type', _typeLabels, _typeIndex,
+                        (i) => setState(() => _typeIndex = i), t, isDark),
+                    const SizedBox(height: AppSizes.s16),
+                    _filterSection('Condition', _conditionLabels, _conditionIndex,
+                        (i) => setState(() => _conditionIndex = i), t, isDark),
+                    const SizedBox(height: AppSizes.s16),
+                    Consumer<CategoryProvider>(
+                      builder: (_, cp, __) {
+                        final cats = ['All Categories', ...cp.categoryNames];
+                        return _filterSection('Category', cats, _categoryIndex,
+                            (i) => setState(() => _categoryIndex = i), t, isDark);
+                      },
+                    ),
+                    const SizedBox(height: AppSizes.s16),
+                    Text(
+                      'Price Range',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.s10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _minCtrl,
+                            keyboardType: TextInputType.number,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Min',
+                              hintStyle: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: AppColors.textMuted,
+                              ),
+                              prefixText: '\$ ',
+                              prefixStyle: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: AppColors.textMuted,
+                              ),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.06)
+                                  : AppColors.bgSurface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSizes.s14,
+                                vertical: AppSizes.s12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSizes.s12),
+                          child: Text(
+                            'to',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _maxCtrl,
+                            keyboardType: TextInputType.number,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Max',
+                              hintStyle: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: AppColors.textMuted,
+                              ),
+                              prefixText: '\$ ',
+                              prefixStyle: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: AppColors.textMuted,
+                              ),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.06)
+                                  : AppColors.bgSurface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSizes.s14,
+                                vertical: AppSizes.s12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSizes.s24),
+                  ],
+                ),
+              ),
+            ),
             PremiumButton(
               label: 'Apply Filters',
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final type = _typeIndex == 0 ? null : _types[_typeIndex];
+                final condition =
+                    _conditionIndex == 0 ? null : _conditions[_conditionIndex];
+                final minP = double.tryParse(_minCtrl.text);
+                final maxP = double.tryParse(_maxCtrl.text);
+                widget.onApply(type, condition, minP, maxP);
+                Navigator.pop(context);
+              },
               style: PremiumButtonStyle.gradient,
               height: AppSizes.buttonLg,
               borderRadius: AppSizes.radiusMd,
@@ -342,8 +753,8 @@ class _FilterSheetState extends State<_FilterSheet> {
     );
   }
 
-  Widget _filterSection(String title, List<String> items, int selected,
-      ValueChanged<int> onSelect, ThemeData t) {
+  Widget _filterSection(String title, List<String> labels, int selected,
+      ValueChanged<int> onSelect, ThemeData t, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -352,14 +763,14 @@ class _FilterSheetState extends State<_FilterSheet> {
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: widget.isDark ? Colors.white70 : AppColors.textSecondary,
+            color: isDark ? Colors.white70 : AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: AppSizes.s10),
         Wrap(
           spacing: AppSizes.s8,
           runSpacing: AppSizes.s8,
-          children: List.generate(items.length, (i) {
+          children: List.generate(labels.length, (i) {
             final isSel = i == selected;
             return GestureDetector(
               onTap: () => onSelect(i),
@@ -381,7 +792,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   ),
                 ),
                 child: Text(
-                  items[i],
+                  labels[i],
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -399,8 +810,8 @@ class _FilterSheetState extends State<_FilterSheet> {
 
 class _EmptyState extends StatelessWidget {
   final String searchQuery;
-  final String category;
-  const _EmptyState({required this.searchQuery, required this.category});
+  final bool hasFilter;
+  const _EmptyState({required this.searchQuery, required this.hasFilter});
 
   @override
   Widget build(BuildContext context) {
@@ -443,9 +854,9 @@ class _EmptyState extends StatelessWidget {
             Text(
               hasQuery
                   ? 'No results for "$searchQuery".\nTry a different search.'
-                  : category == 'All Books'
-                      ? 'Be the first to list a book!'
-                      : 'No books listed in $category yet.',
+                  : hasFilter
+                      ? 'No books match your filters.\nTry adjusting them.'
+                      : 'Be the first to list a book!',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 14,
@@ -498,13 +909,17 @@ class _ShimmerCardState extends State<_ShimmerCard>
     return AnimatedBuilder(
       animation: _anim,
       builder: (_, __) {
-        final shimmer = theme.colorScheme.outline.withValues(alpha: _anim.value * 0.6);
+        final shimmer =
+            theme.colorScheme.outline.withValues(alpha: _anim.value * 0.6);
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.s16, vertical: AppSizes.s8),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.s16, vertical: AppSizes.s8),
           child: Container(
             padding: AppSizes.cardPadding,
             decoration: BoxDecoration(
-              color: widget.isDark ? theme.colorScheme.surface : Colors.white,
+              color: widget.isDark
+                  ? theme.colorScheme.surface
+                  : Colors.white,
               borderRadius: BorderRadius.circular(AppSizes.radiusLg),
               border: Border.all(
                 color: widget.isDark
@@ -530,7 +945,8 @@ class _ShimmerCardState extends State<_ShimmerCard>
                   ],
                 ),
                 const SizedBox(height: AppSizes.s14),
-                _box(double.infinity, 240, shimmer, radius: AppSizes.radiusMd),
+                _box(double.infinity, 240, shimmer,
+                    radius: AppSizes.radiusMd),
                 const SizedBox(height: AppSizes.s14),
                 _box(180, 14, shimmer),
                 const SizedBox(height: AppSizes.s6),
@@ -551,7 +967,8 @@ class _ShimmerCardState extends State<_ShimmerCard>
     );
   }
 
-  Widget _box(double w, double h, Color color, {double radius = AppSizes.radiusSm}) =>
+  Widget _box(double w, double h, Color color,
+          {double radius = AppSizes.radiusSm}) =>
       Container(
         width: w == double.infinity ? null : w,
         height: h,

@@ -1,4 +1,4 @@
-# bookswap
+# swaply
 
 A new Flutter project.
 

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- BookSwap — Complete Supabase Schema
+-- Swaply — Complete Supabase Schema
 -- Run this in the Supabase SQL Editor (Dashboard → SQL Editor)
 -- ═══════════════════════════════════════════════════════════════
 
@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 INSERT INTO app_settings (key, value) VALUES
-  ('app_name',            'BookSwap'),
+  ('app_name',            'Swaply'),
   ('contact_email',       ''),
   ('privacy_policy',      ''),
   ('terms_and_conditions','')

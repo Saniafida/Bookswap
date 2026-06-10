@@ -62,13 +62,17 @@ class ProfileHeader extends StatelessWidget {
               children: [
                 Icon(Icons.location_on_rounded, size: 14, color: AppColors.primary),
                 SizedBox(width: AppSizes.s4),
-                Text(
-                  profile.location!,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                Flexible(
+                  child: Text(
+                    profile.location!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -111,32 +115,37 @@ class ProfileHeader extends StatelessWidget {
           SizedBox(height: AppSizes.s28),
           Row(
             children: [
-              Text(
-                isOwnProfile ? 'My Books' : 'Books',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+              Flexible(
+                child: Text(
+                  isOwnProfile ? 'My Items' : 'Items',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                  ),
                 ),
               ),
               SizedBox(width: AppSizes.s8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-                ),
-                child: Text(
-                  listingsCount.toString(),
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                boxShadow: AppColors.primaryGlowShadow,
+              ),
+              child: Text(
+                listingsCount.toString(),
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
+            ),
             ],
           ),
         ],

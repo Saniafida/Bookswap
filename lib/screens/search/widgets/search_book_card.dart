@@ -7,35 +7,35 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/search_constants.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../models/post_model.dart';
+import '../../../data/models/listing_model.dart';
 
 class SearchBookCard extends StatelessWidget {
-  final PostModel post;
+  final ListingModel listing;
 
-  const SearchBookCard({super.key, required this.post});
+  const SearchBookCard({super.key, required this.listing});
 
-  Color _typeColor(ListingType type) {
-    switch (type) {
-      case ListingType.swap:
-        return const Color(0xFF3B82F6);
-      case ListingType.sell:
-        return const Color(0xFF10B981);
-      case ListingType.both:
-        return const Color(0xFF8B5CF6);
-      case ListingType.donate:
-        return const Color(0xFFE11D48);
-    }
+  Color _typeColor(String type) {
+    return switch (type) {
+      'sell' => const Color(0xFF10B981),
+      'exchange' => const Color(0xFF3B82F6),
+      'donate' => const Color(0xFFE11D48),
+      'sellExchange' => const Color(0xFF8B5CF6),
+      'sell_exchange' => const Color(0xFF8B5CF6),
+      _ => AppColors.primary,
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final thumbnail = listing.images.isNotEmpty ? listing.images.first.url : null;
+
     return GestureDetector(
       onTap: () => Navigator.pushNamed(
         context,
         AppRoutes.postDetails,
-        arguments: {'postId': post.id},
+        arguments: {'postId': listing.id},
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
@@ -68,14 +68,13 @@ class SearchBookCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: post.imageUrl != null &&
-                                post.imageUrl!.isNotEmpty
+                        child: thumbnail != null && thumbnail.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(AppSizes.radiusMd),
                                 ),
                                 child: Image.network(
-                                  post.imageUrl!,
+                                  thumbnail,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) =>
                                       _placeholder(context),
@@ -110,15 +109,15 @@ class SearchBookCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                _typeColor(post.listingType),
-                                _typeColor(post.listingType)
+                                _typeColor(listing.listingType),
+                                _typeColor(listing.listingType)
                                     .withValues(alpha: 0.8),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(6),
                             boxShadow: [
                               BoxShadow(
-                                color: _typeColor(post.listingType)
+                                color: _typeColor(listing.listingType)
                                     .withValues(alpha: 0.3),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
@@ -126,7 +125,7 @@ class SearchBookCard extends StatelessWidget {
                             ],
                           ),
                           child: Text(
-                            SearchConstants.listingTypeLabel(post.listingType),
+                            SearchConstants.listingTypeLabel(listing.listingType),
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontSize: 9,
@@ -136,7 +135,7 @@ class SearchBookCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (post.category != null)
+                      if (listing.categoryName != null)
                         Positioned(
                           top: 8,
                           right: 8,
@@ -151,7 +150,7 @@ class SearchBookCard extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              post.category!,
+                              listing.categoryName!,
                               style: GoogleFonts.poppins(
                                 color: Colors.white,
                                 fontSize: 8,
@@ -170,7 +169,7 @@ class SearchBookCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        post.title,
+                        listing.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
@@ -187,7 +186,7 @@ class SearchBookCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              post.author,
+                              listing.conditionLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.poppins(
@@ -206,22 +205,17 @@ class SearchBookCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            post.listingType == ListingType.swap
-                                ? 'Swap'
-                                : post.listingType == ListingType.donate
-                                    ? 'Free'
-                                    : post.price != null
-                                        ? '\$${post.price!.toStringAsFixed(0)}'
-                                        : 'Free',
+                            listing.priceLabel.isNotEmpty
+                                ? listing.priceLabel
+                                : listing.listingTypeLabel,
                             style: GoogleFonts.poppins(
-                              color: _typeColor(post.listingType),
+                              color: _typeColor(listing.listingType),
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               letterSpacing: -0.3,
                             ),
                           ),
-                          if (post.ownerAvatarUrl != null ||
-                              post.ownerName != null)
+                          if (listing.ownerName != null)
                             Container(
                               width: 22,
                               height: 22,
@@ -243,13 +237,13 @@ class SearchBookCard extends StatelessWidget {
                                 backgroundColor:
                                     AppColors.primary.withValues(alpha: 0.1),
                                 backgroundImage:
-                                    post.ownerAvatarUrl != null
-                                        ? NetworkImage(post.ownerAvatarUrl!)
+                                    listing.ownerAvatarUrl != null
+                                        ? NetworkImage(listing.ownerAvatarUrl!)
                                         : null,
-                                child: post.ownerAvatarUrl == null
+                                child: listing.ownerAvatarUrl == null
                                     ? Text(
-                                        (post.ownerName?.isNotEmpty == true
-                                                ? post.ownerName![0]
+                                        (listing.ownerName?.isNotEmpty == true
+                                                ? listing.ownerName![0]
                                                 : 'U')
                                             .toUpperCase(),
                                         style: GoogleFonts.poppins(
@@ -285,7 +279,7 @@ class SearchBookCard extends StatelessWidget {
       ),
       child: Center(
         child: Icon(
-          Icons.book_rounded,
+          Icons.inventory_2_rounded,
           size: 32,
           color: AppColors.primary.withValues(alpha: 0.25),
         ),

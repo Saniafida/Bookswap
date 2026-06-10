@@ -4,41 +4,44 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/services/supabase_service.dart';
-import '../models/post_model.dart';
+import '../data/models/listing_model.dart';
+import '../data/repositories/listing_repository.dart';
 import '../models/user_model.dart';
 
-enum SearchTab { books, users }
+enum SearchTab { items, users }
 
 enum SearchStatus { initial, loading, loaded, error }
 
 class SearchProvider extends ChangeNotifier {
   SearchStatus _status = SearchStatus.initial;
-  SearchTab _activeTab = SearchTab.books;
+  SearchTab _activeTab = SearchTab.items;
   String _query = '';
   String? _errorMessage;
 
-  List<PostModel> _bookResults = [];
+  List<ListingModel> _listingResults = [];
   List<UserModel> _userResults = [];
 
   String? _selectedCategory;
-  ListingType? _selectedListingType;
-  BookCondition? _selectedCondition;
+  String? _selectedListingType;
+  String? _selectedCondition;
 
   Timer? _debounceTimer;
-  RealtimeChannel? _postsChannel;
+  RealtimeChannel? _listingsChannel;
   int _searchGeneration = 0;
   String? _currentUserId;
+
+  final ListingRepository _listingRepository = const ListingRepository();
 
   // ── Getters ───────────────────────────────────────────────────────────────
   SearchStatus get status => _status;
   SearchTab get activeTab => _activeTab;
   String get query => _query;
   String? get errorMessage => _errorMessage;
-  List<PostModel> get bookResults => _bookResults;
+  List<ListingModel> get listingResults => _listingResults;
   List<UserModel> get userResults => _userResults;
   String? get selectedCategory => _selectedCategory;
-  ListingType? get selectedListingType => _selectedListingType;
-  BookCondition? get selectedCondition => _selectedCondition;
+  String? get selectedListingType => _selectedListingType;
+  String? get selectedCondition => _selectedCondition;
 
   bool get isLoading => _status == SearchStatus.loading;
   bool get hasActiveFilters =>
@@ -47,7 +50,7 @@ class SearchProvider extends ChangeNotifier {
       _selectedCondition != null;
 
   int get resultCount =>
-      _activeTab == SearchTab.books ? _bookResults.length : _userResults.length;
+      _activeTab == SearchTab.items ? _listingResults.length : _userResults.length;
 
   // ── Tab & query ───────────────────────────────────────────────────────────
   void setActiveTab(SearchTab tab) {
@@ -76,13 +79,13 @@ class SearchProvider extends ChangeNotifier {
     _runSearch(immediate: true);
   }
 
-  void setListingType(ListingType? type) {
+  void setListingType(String? type) {
     _selectedListingType = type;
     notifyListeners();
     _runSearch(immediate: true);
   }
 
-  void setCondition(BookCondition? condition) {
+  void setCondition(String? condition) {
     _selectedCondition = condition;
     notifyListeners();
     _runSearch(immediate: true);
@@ -111,8 +114,8 @@ class SearchProvider extends ChangeNotifier {
     _setLoading();
 
     try {
-      if (_activeTab == SearchTab.books) {
-        await _searchBooks();
+      if (_activeTab == SearchTab.items) {
+        await _searchListings();
       } else {
         await _searchUsers(excludeUserId: _currentUserId);
       }
@@ -125,28 +128,21 @@ class SearchProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _searchBooks() async {
+  Future<void> _searchListings() async {
     final trimmed = _query.trim();
-    var builder = SupabaseService.table('posts')
-        .select('*, profiles(full_name, avatar_url)')
-        .eq('is_available', true);
-
-    if (trimmed.isNotEmpty) {
-      builder = builder.or('title.ilike.%$trimmed%,author.ilike.%$trimmed%');
-    }
-    if (_selectedCategory != null) {
-      builder = builder.eq('category', _selectedCategory!);
-    }
-    if (_selectedListingType != null) {
-      builder = builder.eq('listing_type', _selectedListingType!.name);
-    }
-    if (_selectedCondition != null) {
-      builder = builder.eq('condition', _selectedCondition!.name);
-    }
-
-    final data = await builder.order('created_at', ascending: false);
-    _bookResults =
-        (data as List).map((e) => PostModel.fromJson(e as Map<String, dynamic>)).toList();
+    final results = await _listingRepository.searchListings(trimmed);
+    _listingResults = results.where((l) {
+      if (_selectedCategory != null && l.categoryName != _selectedCategory) {
+        return false;
+      }
+      if (_selectedListingType != null && l.listingType != _selectedListingType) {
+        return false;
+      }
+      if (_selectedCondition != null && l.condition != _selectedCondition) {
+        return false;
+      }
+      return true;
+    }).toList();
   }
 
   Future<void> _searchUsers({String? excludeUserId}) async {
@@ -172,7 +168,7 @@ class SearchProvider extends ChangeNotifier {
     if (_activeTab == SearchTab.users) {
       await _searchUsers(excludeUserId: _currentUserId);
     } else {
-      await _searchBooks();
+      await _searchListings();
     }
     _status = SearchStatus.loaded;
     notifyListeners();
@@ -180,7 +176,7 @@ class SearchProvider extends ChangeNotifier {
 
   Future<void> initialize({String? currentUserId}) async {
     _currentUserId = currentUserId;
-    _activeTab = SearchTab.books;
+    _activeTab = SearchTab.items;
     _query = '';
     await refresh(currentUserId: currentUserId);
   }
@@ -189,17 +185,17 @@ class SearchProvider extends ChangeNotifier {
     _currentUserId = userId;
   }
 
-  // ── Realtime: refresh book results when posts change ────────────────────────
-  void subscribeToPosts() {
-    _postsChannel?.unsubscribe();
-    _postsChannel = SupabaseService.client
-        .channel('public:search-posts')
+  // ── Realtime: refresh listing results when listings change ──────────────────
+  void subscribeToListings() {
+    _listingsChannel?.unsubscribe();
+    _listingsChannel = SupabaseService.client
+        .channel('public:search-listings')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'posts',
+          table: 'listings',
           callback: (_) {
-            if (_activeTab == SearchTab.books) {
+            if (_activeTab == SearchTab.items) {
               _runSearch(immediate: true);
             }
           },
@@ -208,8 +204,8 @@ class SearchProvider extends ChangeNotifier {
   }
 
   void unsubscribe() {
-    _postsChannel?.unsubscribe();
-    _postsChannel = null;
+    _listingsChannel?.unsubscribe();
+    _listingsChannel = null;
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────

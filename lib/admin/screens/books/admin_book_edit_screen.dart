@@ -4,15 +4,15 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/admin_book_provider.dart';
 import '../../providers/admin_category_provider.dart';
-import 'package:bookswap/models/post_model.dart';
+import '../../../data/models/listing_model.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/premium_button.dart';
 
 class AdminBookEditScreen extends StatefulWidget {
-  final PostModel book;
-  const AdminBookEditScreen({super.key, required this.book});
+  final ListingModel listing;
+  const AdminBookEditScreen({super.key, required this.listing});
 
   @override
   State<AdminBookEditScreen> createState() => _AdminBookEditScreenState();
@@ -21,26 +21,30 @@ class AdminBookEditScreen extends StatefulWidget {
 class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
-  late final TextEditingController _authorController;
   late final TextEditingController _descController;
   late final TextEditingController _priceController;
   late final TextEditingController _locationController;
-  String? _category;
-  late BookCondition _condition;
-  late ListingType _listingType;
+  String? _categoryId;
+  late String _condition;
+  late String _listingType;
+  late String _status;
   bool _isSaving = false;
+
+  static const List<String> _conditionOptions = ['brandNew', 'likeNew', 'good', 'fair', 'poor'];
+  static const List<String> _listingTypeOptions = ['sell', 'exchange', 'donate', 'sell_exchange'];
+  static const List<String> _statusOptions = ['active', 'sold', 'removed', 'expired'];
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.book.title);
-    _authorController = TextEditingController(text: widget.book.author);
-    _descController = TextEditingController(text: widget.book.description ?? '');
-    _priceController = TextEditingController(text: widget.book.price?.toString() ?? '');
-    _locationController = TextEditingController(text: widget.book.location ?? '');
-    _category = widget.book.category;
-    _condition = widget.book.condition;
-    _listingType = widget.book.listingType;
+    _titleController = TextEditingController(text: widget.listing.title);
+    _descController = TextEditingController(text: widget.listing.description ?? '');
+    _priceController = TextEditingController(text: widget.listing.price?.toString() ?? '');
+    _locationController = TextEditingController(text: widget.listing.location ?? '');
+    _categoryId = widget.listing.categoryId;
+    _condition = widget.listing.condition;
+    _listingType = widget.listing.listingType;
+    _status = widget.listing.status;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminCategoryProvider>().fetchCategories();
     });
@@ -49,7 +53,6 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _authorController.dispose();
     _descController.dispose();
     _priceController.dispose();
     _locationController.dispose();
@@ -62,22 +65,22 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
     final priceVal = double.tryParse(_priceController.text);
     final data = {
       'title': _titleController.text.trim(),
-      'author': _authorController.text.trim(),
       'description': _descController.text.trim().isEmpty ? null : _descController.text.trim(),
-      'condition': _condition.name,
-      'listing_type': _listingType.name,
-      'price': (_listingType == ListingType.sell || _listingType == ListingType.both) ? priceVal : null,
-      'category': _category,
+      'condition': _condition,
+      'listing_type': _listingType,
+      'price': (_listingType == 'sell' || _listingType == 'sell_exchange') ? priceVal : null,
+      'category_id': _categoryId,
       'location': _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+      'status': _status,
     };
-    final success = await context.read<AdminBookProvider>().updateBook(widget.book.id, data);
+    final success = await context.read<AdminBookProvider>().updateListing(widget.listing.id, data);
     setState(() => _isSaving = false);
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Book listing updated successfully')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Listing updated successfully')));
       Navigator.of(context).pop();
     } else if (mounted) {
       final error = context.read<AdminBookProvider>().error;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update book: ${error ?? 'Unknown error'}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update listing: ${error ?? 'Unknown error'}')));
     }
   }
 
@@ -93,7 +96,7 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary), onPressed: () => Navigator.of(context).pop()),
-        title: Text('Edit Book Listing', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text('Edit Listing', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
       ),
       body: SingleChildScrollView(
         padding: AppSizes.pagePadding,
@@ -107,20 +110,12 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLabel('Book Title *'),
+                    _buildLabel('Listing Title *'),
                     TextFormField(
                       controller: _titleController,
                       style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                      decoration: _inputDecoration('Enter book title', isDark),
+                      decoration: _inputDecoration('Enter listing title', isDark),
                       validator: (val) => val == null || val.trim().isEmpty ? 'Title is required' : null,
-                    ),
-                    const SizedBox(height: AppSizes.s20),
-                    _buildLabel('Author *'),
-                    TextFormField(
-                      controller: _authorController,
-                      style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                      decoration: _inputDecoration('Enter author name', isDark),
-                      validator: (val) => val == null || val.trim().isEmpty ? 'Author is required' : null,
                     ),
                     const SizedBox(height: AppSizes.s20),
                     LayoutBuilder(builder: (context, constraints) {
@@ -147,6 +142,8 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
                       return Column(children: [_buildListingTypeField(isDark), const SizedBox(height: AppSizes.s16), _buildPriceField(isDark)]);
                     }),
                     const SizedBox(height: AppSizes.s20),
+                    _buildStatusField(isDark),
+                    const SizedBox(height: AppSizes.s20),
                     _buildLabel('Location'),
                     TextFormField(
                       controller: _locationController,
@@ -158,11 +155,11 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
                     TextFormField(
                       controller: _descController, maxLines: 4,
                       style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                      decoration: _inputDecoration('Enter book description or seller details...', isDark),
+                      decoration: _inputDecoration('Enter listing description...', isDark),
                     ),
                     const SizedBox(height: AppSizes.s32),
                     PremiumButton(
-                      label: _isSaving ? 'Saving...' : 'Save Book Changes',
+                      label: _isSaving ? 'Saving...' : 'Save Listing Changes',
                       isLoading: _isSaving,
                       style: PremiumButtonStyle.gradient,
                       height: AppSizes.buttonLg,
@@ -219,10 +216,13 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _buildLabel('Category'),
       _buildDropdown<String?>(
-        value: _category,
+        value: _categoryId,
         isDark: isDark,
-        items: [const DropdownMenuItem<String?>(value: null, child: Text('None')), ...categoryProvider.categories.map((c) => DropdownMenuItem<String?>(value: c.name, child: Text(c.name)))],
-        onChanged: (val) => setState(() => _category = val),
+        items: [
+          const DropdownMenuItem<String?>(value: null, child: Text('None')),
+          ...categoryProvider.categories.map((c) => DropdownMenuItem<String?>(value: c.id, child: Text(c.name))),
+        ],
+        onChanged: (val) => setState(() => _categoryId = val),
       ),
     ]);
   }
@@ -230,10 +230,10 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
   Widget _buildConditionField(bool isDark) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _buildLabel('Condition *'),
-      _buildDropdown<BookCondition>(
+      _buildDropdown<String>(
         value: _condition,
         isDark: isDark,
-        items: BookCondition.values.map((c) => DropdownMenuItem<BookCondition>(value: c, child: Text(_conditionLabel(c)))).toList(),
+        items: _conditionOptions.map((c) => DropdownMenuItem<String>(value: c, child: Text(_conditionLabel(c)))).toList(),
         onChanged: (val) { if (val != null) setState(() => _condition = val); },
       ),
     ]);
@@ -242,17 +242,17 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
   Widget _buildListingTypeField(bool isDark) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _buildLabel('Listing Type *'),
-      _buildDropdown<ListingType>(
+      _buildDropdown<String>(
         value: _listingType,
         isDark: isDark,
-        items: ListingType.values.map((t) => DropdownMenuItem<ListingType>(value: t, child: Text(t.name.toUpperCase()))).toList(),
+        items: _listingTypeOptions.map((t) => DropdownMenuItem<String>(value: t, child: Text(_listingTypeLabel(t)))).toList(),
         onChanged: (val) { if (val != null) setState(() => _listingType = val); },
       ),
     ]);
   }
 
   Widget _buildPriceField(bool isDark) {
-    final showPrice = _listingType == ListingType.sell || _listingType == ListingType.both;
+    final showPrice = _listingType == 'sell' || _listingType == 'sell_exchange';
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _buildLabel('Price (\$)'),
       TextFormField(
@@ -269,5 +269,18 @@ class _AdminBookEditScreenState extends State<AdminBookEditScreen> {
     ]);
   }
 
-  String _conditionLabel(BookCondition c) => switch (c) { BookCondition.brandNew => 'Brand New', BookCondition.likeNew => 'Like New', BookCondition.good => 'Good', BookCondition.fair => 'Fair', BookCondition.poor => 'Poor' };
+  Widget _buildStatusField(bool isDark) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _buildLabel('Status *'),
+      _buildDropdown<String>(
+        value: _status,
+        isDark: isDark,
+        items: _statusOptions.map((s) => DropdownMenuItem<String>(value: s, child: Text(s[0].toUpperCase() + s.substring(1)))).toList(),
+        onChanged: (val) { if (val != null) setState(() => _status = val); },
+      ),
+    ]);
+  }
+
+  String _conditionLabel(String c) => switch (c) { 'brandNew' => 'Brand New', 'likeNew' => 'Like New', 'good' => 'Good', 'fair' => 'Fair', 'poor' => 'Poor', _ => c };
+  String _listingTypeLabel(String t) => switch (t) { 'sell' => 'For Sale', 'exchange' => 'For Exchange', 'donate' => 'Free', 'sell_exchange' => 'Sell or Exchange', _ => t };
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../models/user_model.dart';
-import '../../models/post_model.dart';
+import '../../data/models/listing_model.dart';
 import '../../core/enums/user_role.dart';
 import '../repositories/admin_user_repository.dart';
 
@@ -14,7 +14,7 @@ class AdminUserProvider extends ChangeNotifier {
   AdminUserStatus _status = AdminUserStatus.initial;
   List<UserModel> _users = [];
   UserModel? _selectedUser;
-  List<PostModel> _selectedUserPosts = [];
+  List<ListingModel> _selectedUserListings = [];
   String? _error;
   String _searchQuery = '';
   bool _bannedOnly = false;
@@ -24,7 +24,7 @@ class AdminUserProvider extends ChangeNotifier {
   AdminUserStatus get status => _status;
   List<UserModel> get users => _users;
   UserModel? get selectedUser => _selectedUser;
-  List<PostModel> get selectedUserPosts => _selectedUserPosts;
+  List<ListingModel> get selectedUserListings => _selectedUserListings;
   String? get error => _error;
   bool get isLoading => _status == AdminUserStatus.loading;
   bool get hasMore => _hasMore;
@@ -72,10 +72,10 @@ class AdminUserProvider extends ChangeNotifier {
     try {
       final results = await Future.wait([
         _repo.fetchUserDetail(uid),
-        _repo.fetchUserPosts(uid),
+        _repo.fetchUserListings(uid),
       ]);
       _selectedUser = results[0] as UserModel;
-      _selectedUserPosts = results[1] as List<PostModel>;
+      _selectedUserListings = results[1] as List<ListingModel>;
       _status = AdminUserStatus.loaded;
     } catch (e) {
       _status = AdminUserStatus.error;

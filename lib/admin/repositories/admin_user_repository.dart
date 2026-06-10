@@ -1,6 +1,6 @@
 import '../../core/services/supabase_service.dart';
 import '../../models/user_model.dart';
-import '../../models/post_model.dart';
+import '../../data/models/listing_model.dart';
 
 class AdminUserRepository {
   const AdminUserRepository();
@@ -37,12 +37,12 @@ class AdminUserRepository {
     return UserModel.fromJson(data);
   }
 
-  Future<List<PostModel>> fetchUserPosts(String uid) async {
-    final data = await SupabaseService.table('posts')
-        .select('*, profiles(full_name, avatar_url)')
+  Future<List<ListingModel>> fetchUserListings(String uid) async {
+    final data = await SupabaseService.table('listings')
+        .select('*, profiles(full_name, avatar_url), categories(name, icon), listing_images(*)')
         .eq('user_id', uid)
         .order('created_at', ascending: false);
-    return (data as List).map((e) => PostModel.fromJson(e)).toList();
+    return (data as List).map((e) => ListingModel.fromJson(e)).toList();
   }
 
   Future<void> banUser(String uid) async {

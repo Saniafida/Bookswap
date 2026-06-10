@@ -1,38 +1,40 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/services/supabase_service.dart';
-import '../../models/post_model.dart';
+import '../../data/models/listing_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/favorite_provider.dart';
+import '../../providers/listing_provider.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/premium_button.dart';
+import '../../widgets/premium_dialogs.dart';
 import '../../widgets/premium_loading.dart';
 
-class PostDetailsScreen extends StatefulWidget {
-  final String postId;
-  const PostDetailsScreen({super.key, required this.postId});
+class ListingDetailScreen extends StatefulWidget {
+  final String listingId;
+  const ListingDetailScreen({super.key, required this.listingId});
 
   @override
-  State<PostDetailsScreen> createState() => _PostDetailsScreenState();
+  State<ListingDetailScreen> createState() => _ListingDetailScreenState();
 }
 
-class _PostDetailsScreenState extends State<PostDetailsScreen> {
-  PostModel? _post;
+class _ListingDetailScreenState extends State<ListingDetailScreen> {
+  ListingModel? _listing;
   bool _isLoading = true;
   String? _errorMessage;
-  bool _isFavorited = false;
   int _carouselIndex = 0;
   final PageController _pageController = PageController();
 
   @override
   void initState() {
     super.initState();
-    _loadPostDetails();
+    _loadListingDetails();
   }
 
   @override
@@ -41,22 +43,40 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadPostDetails() async {
+  Future<void> _loadListingDetails() async {
     try {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
 
-      final data = await SupabaseService.table('posts')
-          .select('*, profiles(full_name, avatar_url)')
-          .eq('id', widget.postId)
-          .single();
+      final listingProvider = Provider.of<ListingProvider>(context, listen: false);
+      final listing = await listingProvider.fetchListing(widget.listingId);
 
-      setState(() {
-        _post = PostModel.fromJson(data);
-        _isLoading = false;
-      });
+      if (!mounted) return;
+
+      if (listing != null) {
+        setState(() {
+          _listing = listing;
+          _isLoading = false;
+        });
+
+        listingProvider.incrementViewCount(widget.listingId);
+
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final userId = authProvider.currentUser?.id;
+        if (userId != null) {
+          final favProvider = Provider.of<FavoriteProvider>(context, listen: false);
+          if (favProvider.favoriteIds.isEmpty) {
+            favProvider.fetchFavorites(userId);
+          }
+        }
+      } else {
+        setState(() {
+          _errorMessage = listingProvider.errorMessage ?? 'Listing not found';
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -65,32 +85,24 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     }
   }
 
-  String _formatCondition(BookCondition condition) {
-    switch (condition) {
-      case BookCondition.brandNew:
-        return 'Brand New';
-      case BookCondition.likeNew:
-        return 'Like New';
-      case BookCondition.good:
-        return 'Good';
-      case BookCondition.fair:
-        return 'Fair';
-      case BookCondition.poor:
-        return 'Poor';
-    }
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays >= 7) return '${dt.day}/${dt.month}/${dt.year}';
+    if (diff.inDays >= 1) return '${diff.inDays}d ago';
+    if (diff.inHours >= 1) return '${diff.inHours}h ago';
+    if (diff.inMinutes >= 1) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 
-  String _formatListingType(ListingType type) {
-    switch (type) {
-      case ListingType.swap:
-        return 'Swap';
-      case ListingType.sell:
-        return 'Sell';
-      case ListingType.both:
-        return 'Swap/Sell';
-      case ListingType.donate:
-        return 'Donate';
-    }
+  Color _getListingTypeColor(String type) {
+    return switch (type) {
+      'exchange' => const Color(0xFF3B82F6),
+      'sell' => const Color(0xFF10B981),
+      'sellExchange' => const Color(0xFF7C3AED),
+      'sell_exchange' => const Color(0xFF7C3AED),
+      'donate' => const Color(0xFFE11D48),
+      _ => AppColors.primary,
+    };
   }
 
   Future<void> _handleMessageAction(BuildContext context, String currentUserId, String ownerId) async {
@@ -112,7 +124,11 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
         Navigator.pushNamed(
           context,
           AppRoutes.chat,
-          arguments: {'chatId': chatId},
+          arguments: {
+            'chatId': chatId,
+            'participantName': _listing?.ownerName,
+            'participantAvatarUrl': _listing?.ownerAvatarUrl,
+          },
         );
       } else {
         if (context.mounted) {
@@ -131,18 +147,70 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     }
   }
 
-  void _toggleFavorite() {
-    setState(() {
-      _isFavorited = !_isFavorited;
-    });
+  Future<void> _handleToggleFavorite() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to save items.')),
+      );
+      return;
+    }
+
+    final favProvider = Provider.of<FavoriteProvider>(context, listen: false);
+    final isFav = await favProvider.toggleFavorite(userId, widget.listingId);
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_isFavorited ? 'Added to Saved Books' : 'Removed from Saved Books'),
+        content: Text(isFav ? 'Added to Favorites' : 'Removed from Favorites'),
         duration: const Duration(seconds: 2),
-        backgroundColor: _isFavorited ? AppColors.success : AppColors.textSecondary,
+        backgroundColor: isFav ? AppColors.success : AppColors.textSecondary,
       ),
+    );
+  }
+
+  void _handleShare() {
+    final listing = _listing;
+    if (listing == null) return;
+    Clipboard.setData(ClipboardData(
+      text: 'Check out "${listing.title}" on Swaply! Price: ${listing.priceLabel}',
+    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Link copied to clipboard!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _handleDelete() async {
+    await PremiumDialog.confirm(
+      context,
+      title: 'Delete Listing',
+      message: 'Are you sure you want to delete this listing? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmColor: AppColors.error,
+      onConfirm: () async {
+        final listingProvider = Provider.of<ListingProvider>(context, listen: false);
+        final success = await listingProvider.deleteListing(widget.listingId);
+        if (!mounted) return;
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Listing deleted.')),
+          );
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(listingProvider.errorMessage ?? 'Failed to delete.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -152,15 +220,19 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUserId = authProvider.currentUser?.id;
+    final favoriteProvider = Provider.of<FavoriteProvider>(context, listen: false);
+    final isFavorited = widget.listingId.isNotEmpty
+        ? favoriteProvider.isFavorited(widget.listingId)
+        : false;
 
     Widget bodyWidget;
 
     if (_isLoading) {
       bodyWidget = const Center(
         key: ValueKey('loading'),
-        child: PremiumLoading(size: 32, message: 'Loading book details...'),
+        child: PremiumLoading(size: 32, message: 'Loading listing details...'),
       );
-    } else if (_errorMessage != null || _post == null) {
+    } else if (_errorMessage != null || _listing == null) {
       bodyWidget = Center(
         key: const ValueKey('error'),
         child: Padding(
@@ -188,7 +260,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
               ),
               const SizedBox(height: AppSizes.s8),
               Text(
-                _errorMessage ?? 'Book listing not found',
+                _errorMessage ?? 'Listing not found',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
@@ -199,7 +271,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
               PremiumButton(
                 label: 'Try Again',
                 icon: const Icon(Icons.refresh_rounded, size: 18, color: Colors.white),
-                onPressed: _loadPostDetails,
+                onPressed: _loadListingDetails,
                 width: 160,
               ),
             ],
@@ -207,13 +279,15 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
         ),
       );
     } else {
-      final post = _post!;
-      final isOwner = currentUserId == post.userId;
+      final listing = _listing!;
+      final isOwner = currentUserId == listing.userId;
+
+      final imageUrls = listing.images.map((img) => img.url).toList();
+      final hasImages = imageUrls.isNotEmpty;
 
       List<Widget> carouselSlides = [];
-
-      if (post.imageUrls.isNotEmpty) {
-        for (final url in post.imageUrls) {
+      if (hasImages) {
+        for (final url in imageUrls) {
           carouselSlides.add(
             Stack(
               fit: StackFit.expand,
@@ -228,20 +302,6 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
             ),
           );
         }
-      } else if (post.imageUrl != null && post.imageUrl!.isNotEmpty) {
-        carouselSlides.add(
-          Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.network(
-                post.imageUrl!,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) => _buildCoverPlaceholder(theme),
-              ),
-            ],
-          ),
-        );
       } else {
         carouselSlides.add(_buildCoverPlaceholder(theme));
       }
@@ -354,28 +414,24 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: _getListingTypeColor(post.listingType).withValues(alpha: 0.12),
+                                            color: _getListingTypeColor(listing.listingType).withValues(alpha: 0.12),
                                             borderRadius: BorderRadius.circular(AppSizes.radiusFull),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
-                                                post.listingType == ListingType.swap
-                                                    ? Icons.swap_horiz_rounded
-                                                    : post.listingType == ListingType.donate
-                                                        ? Icons.volunteer_activism_rounded
-                                                        : Icons.sell_rounded,
+                                                listing.listingTypeIcon,
                                                 size: 14,
-                                                color: _getListingTypeColor(post.listingType),
+                                                color: _getListingTypeColor(listing.listingType),
                                               ),
                                               const SizedBox(width: 4),
                                               Text(
-                                                _formatListingType(post.listingType),
+                                                listing.listingTypeLabel,
                                                 style: GoogleFonts.poppins(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w600,
-                                                  color: _getListingTypeColor(post.listingType),
+                                                  color: _getListingTypeColor(listing.listingType),
                                                 ),
                                               ),
                                             ],
@@ -383,7 +439,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                                         ),
                                         const SizedBox(height: AppSizes.s12),
                                         Text(
-                                          post.title,
+                                          listing.title,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.poppins(
@@ -393,48 +449,33 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                                             height: 1.25,
                                           ),
                                         ),
-                                        const SizedBox(height: AppSizes.s4),
-                                        Text(
-                                          'by ${post.author}',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w400,
-                                            fontStyle: FontStyle.italic,
-                                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                                          ),
-                                        ),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(width: AppSizes.s16),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      gradient: AppColors.primaryGradient,
-                                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppColors.primary.withValues(alpha: 0.25),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
+                                  if (listing.price != null || listing.listingType == 'donate')
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        gradient: AppColors.primaryGradient,
+                                        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppColors.primary.withValues(alpha: 0.25),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        listing.priceLabel,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
                                         ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      post.listingType == ListingType.swap
-                                          ? 'Swap'
-                                          : post.listingType == ListingType.donate
-                                              ? 'Free'
-                                              : post.price != null
-                                                  ? '\$${post.price!.toStringAsFixed(0)}'
-                                                  : 'Free',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
                                       ),
                                     ),
-                                  ),
                                 ],
                               ),
                               const SizedBox(height: AppSizes.s20),
@@ -442,22 +483,30 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                                 spacing: AppSizes.s8,
                                 runSpacing: AppSizes.s8,
                                 children: [
-                                  _buildMetricChip(
-                                    icon: Icons.folder_open_rounded,
-                                    label: post.category ?? 'General',
-                                    theme: theme,
-                                    isDark: isDark,
-                                  ),
+                                  if (listing.categoryName != null)
+                                    _buildMetricChip(
+                                      icon: Icons.folder_open_rounded,
+                                      label: listing.categoryName!,
+                                      theme: theme,
+                                      isDark: isDark,
+                                    ),
                                   _buildMetricChip(
                                     icon: Icons.star_border_rounded,
-                                    label: _formatCondition(post.condition),
+                                    label: listing.conditionLabel,
                                     theme: theme,
                                     isDark: isDark,
                                   ),
-                                  if (post.location != null)
+                                  if (listing.location != null)
                                     _buildMetricChip(
                                       icon: Icons.location_on_outlined,
-                                      label: post.location!,
+                                      label: listing.location!,
+                                      theme: theme,
+                                      isDark: isDark,
+                                    ),
+                                  if (listing.price != null && listing.isNegotiable)
+                                    _buildMetricChip(
+                                      icon: Icons.handshake_rounded,
+                                      label: 'Negotiable',
                                       theme: theme,
                                       isDark: isDark,
                                     ),
@@ -487,19 +536,23 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: AppSizes.s10),
-                                  Text(
-                                    'About this book',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                  Flexible(
+                                    child: Text(
+                                      'Description',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: AppSizes.s12),
                               Text(
-                                post.description ?? 'No details or descriptions were provided for this book.',
+                                listing.description ?? 'No description provided.',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
@@ -525,7 +578,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                         Navigator.pushNamed(
                           context,
                           AppRoutes.profile,
-                          arguments: {'userId': post.userId},
+                          arguments: {'userId': listing.userId},
                         );
                       },
                       child: Row(
@@ -540,12 +593,12 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                             child: CircleAvatar(
                               radius: 23,
                               backgroundColor: Colors.transparent,
-                              backgroundImage: post.ownerAvatarUrl != null
-                                  ? NetworkImage(post.ownerAvatarUrl!)
+                              backgroundImage: listing.ownerAvatarUrl != null
+                                  ? NetworkImage(listing.ownerAvatarUrl!)
                                   : null,
-                              child: post.ownerAvatarUrl == null
+                              child: listing.ownerAvatarUrl == null
                                   ? Text(
-                                      ((post.ownerName ?? '').isNotEmpty ? post.ownerName![0] : 'U').toUpperCase(),
+                                      ((listing.ownerName ?? '').isNotEmpty ? listing.ownerName![0] : 'U').toUpperCase(),
                                       style: GoogleFonts.poppins(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w600,
@@ -561,7 +614,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  post.ownerName ?? 'Unknown User',
+                                  listing.ownerName ?? 'Unknown User',
                                   style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
@@ -570,7 +623,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Listing Owner',
+                                  '${_formatTimeAgo(listing.createdAt)} \u00b7 Listing Owner',
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
                                     color: isDark ? AppColors.textMutedDark : AppColors.textMuted,
@@ -622,70 +675,87 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                     MediaQuery.of(context).padding.bottom + AppSizes.s16,
                   ),
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.bgDark.withValues(alpha: 0.82)
-                        : Colors.white.withValues(alpha: 0.82),
+                    color: Colors.white.withValues(alpha: 0.92),
                     border: Border(
                       top: BorderSide(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.black.withValues(alpha: 0.05),
+                        color: AppColors.border.withValues(alpha: 0.5),
+                        width: 1,
                       ),
                     ),
                   ),
                   child: Row(
                     children: [
-                      if (!isOwner)
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                          ),
-                          child: IconButton(
-                            icon: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-                              child: Icon(
-                                _isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                key: ValueKey<bool>(_isFavorited),
-                                color: _isFavorited ? AppColors.error : AppColors.primary,
-                                size: AppSizes.iconMd,
-                              ),
-                            ),
-                            onPressed: _toggleFavorite,
-                          ),
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                         ),
-                      if (!isOwner) const SizedBox(width: AppSizes.s12),
-                      Expanded(
-                        child: PremiumButton(
-                          label: isOwner ? 'Manage Listing' : 'Message Owner',
+                        child: IconButton(
                           icon: Icon(
-                            isOwner ? Icons.tune_rounded : Icons.forum_rounded,
-                            size: 18,
-                            color: Colors.white,
+                            isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            color: isFavorited ? AppColors.error : AppColors.primary,
+                            size: AppSizes.iconMd,
                           ),
-                          style: isOwner ? PremiumButtonStyle.secondary : PremiumButtonStyle.gradient,
-                          height: AppSizes.buttonLg,
-                          onPressed: () {
-                            if (isOwner) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("This is your own listing."),
-                                ),
-                              );
-                            } else if (currentUserId != null) {
-                              _handleMessageAction(context, currentUserId, post.userId);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please sign in to message book owners.'),
-                                ),
-                              );
-                            }
-                          },
+                          onPressed: _handleToggleFavorite,
                         ),
+                      ),
+                      const SizedBox(width: AppSizes.s12),
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.share_rounded,
+                            color: AppColors.primary,
+                            size: AppSizes.iconMd,
+                          ),
+                          onPressed: _handleShare,
+                        ),
+                      ),
+                      const SizedBox(width: AppSizes.s12),
+                      Expanded(
+                        child: isOwner
+                            ? Row(
+                                children: [
+                                  Expanded(
+                                    child: PremiumButton(
+                                      label: 'Delete',
+                                      icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.white),
+                                      style: PremiumButtonStyle.primary,
+                                      color: AppColors.error,
+                                      height: AppSizes.buttonLg,
+                                      onPressed: _handleDelete,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : PremiumButton(
+                                label: currentUserId != null ? 'Message' : 'Sign in to Message',
+                                icon: Icon(
+                                  Icons.forum_rounded,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                                style: PremiumButtonStyle.gradient,
+                                height: AppSizes.buttonLg,
+                                onPressed: () {
+                                  if (currentUserId != null) {
+                                    _handleMessageAction(context, currentUserId, listing.userId);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Please sign in to message the owner.'),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
                       ),
                     ],
                   ),
@@ -698,7 +768,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+      backgroundColor: AppColors.bgLight,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -723,34 +793,24 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
           ),
         ),
         actions: [
-          if (_post != null)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSizes.s12),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    color: Colors.black.withValues(alpha: 0.25),
-                    child: IconButton(
-                      icon: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-                        child: Icon(
-                          _isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          key: ValueKey<bool>(_isFavorited),
-                          color: _isFavorited ? AppColors.error : Colors.white,
-                          size: AppSizes.iconSm,
-                        ),
-                      ),
-                      onPressed: _toggleFavorite,
-                    ),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSizes.s12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  color: Colors.black.withValues(alpha: 0.25),
+                  child: IconButton(
+                    icon: const Icon(Icons.share_rounded, size: AppSizes.iconSm, color: Colors.white),
+                    onPressed: _handleShare,
                   ),
                 ),
               ),
             ),
+          ),
         ],
       ),
       body: AnimatedSwitcher(
@@ -786,14 +846,14 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
               borderRadius: BorderRadius.circular(AppSizes.radiusXl),
             ),
             child: Icon(
-              Icons.book_rounded,
+              Icons.image_rounded,
               size: 36,
               color: theme.colorScheme.primary.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: AppSizes.s12),
           Text(
-            'No cover photo provided',
+            'No images provided',
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -836,18 +896,5 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
         ],
       ),
     );
-  }
-
-  Color _getListingTypeColor(ListingType type) {
-    switch (type) {
-      case ListingType.swap:
-        return Colors.blue;
-      case ListingType.sell:
-        return const Color(0xFF10B981);
-      case ListingType.both:
-        return Colors.purple;
-      case ListingType.donate:
-        return const Color(0xFFE11D48);
-    }
   }
 }

@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/admin_book_provider.dart';
 import '../../providers/admin_category_provider.dart';
-import 'package:bookswap/models/post_model.dart';
+import '../../../data/models/listing_model.dart';
 import '../../widgets/admin_search_bar.dart';
 import '../../widgets/admin_empty_state.dart';
 import '../../widgets/admin_confirm_dialog.dart';
@@ -29,47 +29,55 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AdminBookProvider>().fetchBooks(refresh: true);
+      context.read<AdminBookProvider>().fetchListings(refresh: true);
       context.read<AdminCategoryProvider>().fetchCategories();
     });
   }
 
-  void _confirmDelete(BuildContext context, PostModel book) async {
+  void _confirmDelete(BuildContext context, ListingModel listing) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AdminConfirmDialog(
-        title: 'Delete Book Listing',
-        content: 'Are you sure you want to permanently delete the book "${book.title}"? This listing will be removed from all users.',
+        title: 'Delete Listing',
+        content: 'Are you sure you want to permanently delete the listing "${listing.title}"? This listing will be removed from all users.',
         confirmLabel: 'Delete',
         isDangerous: true,
       ),
     );
     if (confirmed == true && mounted) {
-      final success = await context.read<AdminBookProvider>().deleteBook(book.id);
+      final success = await context.read<AdminBookProvider>().deleteListing(listing.id);
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Book deleted successfully')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Listing deleted successfully')));
       }
     }
   }
 
-  void _toggleFeatured(BuildContext context, PostModel book) async {
-    final newFeatured = !book.isFeatured;
-    final success = await context.read<AdminBookProvider>().setFeatured(book.id, featured: newFeatured);
+  void _toggleFeatured(BuildContext context, ListingModel listing) async {
+    final newFeatured = !listing.isFeatured;
+    final success = await context.read<AdminBookProvider>().setFeatured(listing.id, featured: newFeatured);
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Book is now ${newFeatured ? 'featured' : 'unfeatured'}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Listing is now ${newFeatured ? 'featured' : 'unfeatured'}')));
+    }
+  }
+
+  void _toggleApproval(BuildContext context, ListingModel listing) async {
+    final newApproved = !listing.isApproved;
+    final success = await context.read<AdminBookProvider>().setApproval(listing.id, approved: newApproved);
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Listing ${newApproved ? 'approved' : 'unapproved'}')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bookProvider = context.watch<AdminBookProvider>();
+    final listingProvider = context.watch<AdminBookProvider>();
     final categoryProvider = context.watch<AdminCategoryProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: PremiumButton(
-        label: 'Add Book',
+        label: 'Add Listing',
         icon: const Icon(Icons.add_rounded, size: 18),
         style: PremiumButtonStyle.gradient,
         width: 160,
@@ -81,16 +89,16 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(isDark, bookProvider, categoryProvider),
+            _buildHeader(isDark, listingProvider, categoryProvider),
             const SizedBox(height: AppSizes.s24),
-            Expanded(child: _buildBooksGrid(bookProvider, isDark)),
+            Expanded(child: _buildListingsGrid(listingProvider, isDark)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(bool isDark, AdminBookProvider bookProvider, AdminCategoryProvider categoryProvider) {
+  Widget _buildHeader(bool isDark, AdminBookProvider listingProvider, AdminCategoryProvider categoryProvider) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 650;
@@ -104,17 +112,18 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String?>(
               value: _selectedCategory,
+              isExpanded: true,
               hint: Text('All Categories', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
               dropdownColor: isDark ? AppColors.bgCardDark : Colors.white,
               style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
               icon: Icon(Icons.arrow_drop_down_rounded, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary),
               onChanged: (val) {
                 setState(() => _selectedCategory = val);
-                bookProvider.setCategory(val);
+                listingProvider.setCategory(val);
               },
               items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('All Categories')),
-                ...categoryProvider.categories.map((c) => DropdownMenuItem<String?>(value: c.name, child: Text(c.name))),
+                const DropdownMenuItem<String?>(value: null, child: Text('All Categories', overflow: TextOverflow.ellipsis)),
+                ...categoryProvider.categories.map((c) => DropdownMenuItem<String?>(value: c.name, child: Text(c.name, overflow: TextOverflow.ellipsis))),
               ],
             ),
           ),
@@ -124,11 +133,13 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Book Listings', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+              Text('Listing Management', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               const SizedBox(height: AppSizes.s4),
-              Text('Inspect book listing details, toggle featured status, or prune listings.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
+              Text('Inspect listing details, toggle featured/approval status, or prune listings.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: AppSizes.s12),
-              Row(children: [filterDropdown, const Spacer(), SizedBox(width: 180, child: AdminSearchBar(hintText: 'Search books...', onChanged: (v) => bookProvider.setSearch(v)))]),
+              SizedBox(width: double.infinity, child: filterDropdown),
+              const SizedBox(height: AppSizes.s8),
+              SizedBox(width: double.infinity, height: 44, child: AdminSearchBar(hintText: 'Search listings...', onChanged: (v) => listingProvider.setSearch(v))),
             ],
           );
         }
@@ -138,13 +149,13 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Book Listings', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                Text('Listing Management', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                 const SizedBox(height: AppSizes.s4),
-                Text('Inspect book listing details, toggle featured status, or prune listings.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
+                Text('Inspect listing details, toggle featured/approval status, or prune listings.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
               ],
             ),
             Row(children: [
-              SizedBox(width: 200, child: AdminSearchBar(hintText: 'Search books...', onChanged: (v) => bookProvider.setSearch(v))),
+              SizedBox(width: 200, child: AdminSearchBar(hintText: 'Search listings...', onChanged: (v) => listingProvider.setSearch(v))),
               const SizedBox(width: AppSizes.s12),
               filterDropdown,
             ]),
@@ -154,12 +165,15 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
     );
   }
 
-  Widget _buildBooksGrid(AdminBookProvider provider, bool isDark) {
-    if (provider.isLoading && provider.books.isEmpty) {
+  Widget _buildListingsGrid(AdminBookProvider provider, bool isDark) {
+    if (provider.isLoading && provider.listings.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
-    if (provider.books.isEmpty) {
-      return AdminEmptyState(title: 'No books found', subtitle: 'No listings match your current filters.', icon: Icons.menu_book_rounded);
+    if (provider.error != null) {
+      return AdminEmptyState(title: 'Error loading listings', subtitle: provider.error!, icon: Icons.error_outline_rounded);
+    }
+    if (provider.listings.isEmpty) {
+      return AdminEmptyState(title: 'No listings found', subtitle: 'No listings match your current filters.', icon: Icons.inventory_2_rounded);
     }
 
     return LayoutBuilder(
@@ -173,17 +187,17 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
             Expanded(
               child: GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount, crossAxisSpacing: AppSizes.s16, mainAxisSpacing: AppSizes.s16, childAspectRatio: ratio),
-                itemCount: provider.books.length,
-                itemBuilder: (context, index) => _buildBookCard(provider.books[index], isDark, isMobile: isMobile),
+                itemCount: provider.listings.length,
+                itemBuilder: (context, index) => _buildListingCard(provider.listings[index], isDark, isMobile: isMobile),
               ),
             ),
             if (provider.hasMore) ...[
               const SizedBox(height: AppSizes.s16),
               TextButton(
-                onPressed: () => provider.fetchBooks(),
+                onPressed: () => provider.fetchListings(),
                 child: provider.isLoading
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
-                    : Text('Load More Books', style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    : Text('Load More Listings', style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600)),
               ),
             ],
           ],
@@ -192,7 +206,9 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
     );
   }
 
-  Widget _buildBookCard(PostModel book, bool isDark, {bool isMobile = false}) {
+  Widget _buildListingCard(ListingModel listing, bool isDark, {bool isMobile = false}) {
+    final thumbnailUrl = listing.images.isNotEmpty ? listing.images.first.url : null;
+
     if (isMobile) {
       return GlassCard(
         padding: EdgeInsets.zero,
@@ -204,8 +220,8 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  book.imageUrl != null ? Image.network(book.imageUrl!, fit: BoxFit.cover) : Center(child: Icon(Icons.book_rounded, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, size: 32)),
-                  if (book.isFeatured)
+                  thumbnailUrl != null ? Image.network(thumbnailUrl, fit: BoxFit.cover) : Center(child: Icon(Icons.inventory_2_rounded, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, size: 32)),
+                  if (listing.isFeatured)
                     Positioned(top: 6, left: 6, child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: AppColors.warning, borderRadius: BorderRadius.circular(AppSizes.radiusXs)), child: const Icon(Icons.star_rounded, color: Colors.white, size: 10))),
                 ],
               ),
@@ -216,23 +232,24 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(book.title, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(listing.title, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: AppSizes.s2),
-                    Text('by ${book.author}', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(listing.conditionLabel, style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: AppSizes.s8),
                     Wrap(spacing: 4, runSpacing: 4, children: [
-                      if (book.category != null) _buildTag(book.category!, AppColors.primary),
-                      _buildTag(book.listingType.name.toUpperCase(), AppColors.secondary),
-                      if (book.price != null && book.price! > 0) _buildTag('\$${book.price!.toStringAsFixed(2)}', AppColors.success),
+                      if (listing.categoryName != null) _buildTag(listing.categoryName!, AppColors.primary),
+                      _buildTag(listing.listingTypeLabel, AppColors.secondary),
+                      _buildTag(listing.status.toUpperCase(), listing.isActive ? AppColors.success : AppColors.error),
+                      if (listing.price != null && listing.price! > 0) _buildTag('\$${listing.price!.toStringAsFixed(2)}', AppColors.success),
                     ]),
                     const Spacer(),
-                    if (book.ownerName != null)
-                      Text('Owner: ${book.ownerName}', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+                    if (listing.ownerName != null)
+                      Text('Owner: ${listing.ownerName}', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
             ),
-            _buildActions(book),
+            _buildActions(listing),
           ],
         ),
       );
@@ -249,9 +266,9 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                 Container(
                   width: double.infinity,
                   color: isDark ? AppColors.bgSurfaceDark : AppColors.bgSurface,
-                  child: book.imageUrl != null ? Image.network(book.imageUrl!, fit: BoxFit.cover) : Center(child: Icon(Icons.book_rounded, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, size: 40)),
+                  child: thumbnailUrl != null ? Image.network(thumbnailUrl, fit: BoxFit.cover) : Center(child: Icon(Icons.inventory_2_rounded, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, size: 40)),
                 ),
-                if (book.isFeatured)
+                if (listing.isFeatured)
                   Positioned(top: 8, right: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: AppColors.warning, borderRadius: BorderRadius.circular(AppSizes.radiusXs)), child: Row(mainAxisSize: MainAxisSize.min, children: [
                     const Icon(Icons.star_rounded, color: Colors.white, size: 10),
                     const SizedBox(width: 2),
@@ -266,18 +283,19 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(book.title, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(listing.title, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: AppSizes.s2),
-                  Text('by ${book.author}', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(listing.conditionLabel, style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: AppSizes.s8),
                   Wrap(spacing: 4, runSpacing: 4, children: [
-                    if (book.category != null) _buildTag(book.category!, AppColors.primary),
-                    _buildTag(book.listingType.name.toUpperCase(), AppColors.secondary),
-                    if (book.price != null && book.price! > 0) _buildTag('\$${book.price!.toStringAsFixed(2)}', AppColors.success),
+                    if (listing.categoryName != null) _buildTag(listing.categoryName!, AppColors.primary),
+                    _buildTag(listing.listingTypeLabel, AppColors.secondary),
+                    _buildTag(listing.status.toUpperCase(), listing.isActive ? AppColors.success : AppColors.error),
+                    if (listing.price != null && listing.price! > 0) _buildTag('\$${listing.price!.toStringAsFixed(2)}', AppColors.success),
                   ]),
-                  if (book.ownerName != null) ...[
+                  if (listing.ownerName != null) ...[
                     const SizedBox(height: AppSizes.s8),
-                    Text('Owner: ${book.ownerName}', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+                    Text('Owner: ${listing.ownerName}', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
                   ],
                   const Spacer(),
                   const Divider(height: 1),
@@ -285,9 +303,10 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      IconButton(icon: Icon(book.isFeatured ? Icons.star_rounded : Icons.star_outline_rounded, color: book.isFeatured ? AppColors.warning : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondary), size: AppSizes.iconSm), tooltip: book.isFeatured ? 'Unfeature' : 'Feature', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _toggleFeatured(context, book)),
-                      IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: AppSizes.iconSm), tooltip: 'Edit', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminBookEditScreen(book: book)))),
-                      IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: AppSizes.iconSm), tooltip: 'Delete', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _confirmDelete(context, book)),
+                      IconButton(icon: Icon(listing.isFeatured ? Icons.star_rounded : Icons.star_outline_rounded, color: listing.isFeatured ? AppColors.warning : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondary), size: AppSizes.iconSm), tooltip: listing.isFeatured ? 'Unfeature' : 'Feature', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _toggleFeatured(context, listing)),
+                      IconButton(icon: Icon(listing.isApproved ? Icons.verified_rounded : Icons.verified_outlined, color: listing.isApproved ? AppColors.success : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondary), size: AppSizes.iconSm), tooltip: listing.isApproved ? 'Revoke Approval' : 'Approve', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _toggleApproval(context, listing)),
+                      IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: AppSizes.iconSm), tooltip: 'Edit', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminBookEditScreen(listing: listing)))),
+                      IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: AppSizes.iconSm), tooltip: 'Delete', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _confirmDelete(context, listing)),
                     ],
                   ),
                 ],
@@ -299,15 +318,16 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
     );
   }
 
-  Widget _buildActions(PostModel book) {
+  Widget _buildActions(ListingModel listing) {
     return Padding(
       padding: const EdgeInsets.all(AppSizes.s8),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(icon: Icon(book.isFeatured ? Icons.star_rounded : Icons.star_outline_rounded, color: book.isFeatured ? AppColors.warning : AppColors.textSecondary, size: AppSizes.iconSm), tooltip: book.isFeatured ? 'Unfeature' : 'Feature', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _toggleFeatured(context, book)),
-          IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: AppSizes.iconSm), tooltip: 'Edit', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminBookEditScreen(book: book)))),
-          IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: AppSizes.iconSm), tooltip: 'Delete', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _confirmDelete(context, book)),
+          IconButton(icon: Icon(listing.isFeatured ? Icons.star_rounded : Icons.star_outline_rounded, color: listing.isFeatured ? AppColors.warning : AppColors.textSecondary, size: AppSizes.iconSm), tooltip: listing.isFeatured ? 'Unfeature' : 'Feature', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _toggleFeatured(context, listing)),
+          IconButton(icon: Icon(listing.isApproved ? Icons.verified_rounded : Icons.verified_outlined, color: listing.isApproved ? AppColors.success : AppColors.textSecondary, size: AppSizes.iconSm), tooltip: listing.isApproved ? 'Revoke Approval' : 'Approve', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _toggleApproval(context, listing)),
+          IconButton(icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: AppSizes.iconSm), tooltip: 'Edit', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminBookEditScreen(listing: listing)))),
+          IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: AppSizes.iconSm), tooltip: 'Delete', constraints: const BoxConstraints(), padding: EdgeInsets.zero, onPressed: () => _confirmDelete(context, listing)),
         ],
       ),
     );

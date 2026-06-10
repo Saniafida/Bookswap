@@ -55,12 +55,12 @@ class SearchEmptyState extends StatelessWidget {
             const SizedBox(height: AppSizes.s24),
             Text(
               isFiltered
-                  ? (tab == SearchTab.books
-                      ? 'No books found'
-                      : 'No readers found')
-                  : (tab == SearchTab.books
-                      ? 'Discover books'
-                      : 'Find readers'),
+                  ? (tab == SearchTab.items
+                      ? 'No items found'
+                      : 'No people found')
+                  : (tab == SearchTab.items
+                      ? 'Discover items'
+                      : 'Find people'),
               style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -74,8 +74,8 @@ class SearchEmptyState extends StatelessWidget {
             Text(
               isFiltered
                   ? 'Try a different search or adjust your filters'
-                  : (tab == SearchTab.books
-                      ? 'Search by title, author, or category'
+                  : (tab == SearchTab.items
+                      ? 'Search by title, description, or category'
                       : 'Search by name, location, or interests'),
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(

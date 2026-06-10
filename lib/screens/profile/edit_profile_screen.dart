@@ -9,6 +9,7 @@ import '../../widgets/custom_appbar.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/premium_button.dart';
 import '../../widgets/premium_textfield.dart';
+import '../../widgets/swaply_background.dart';
 import 'widgets/profile_avatar.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -150,7 +151,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final isLoading = profileProvider.isLoading;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: CustomAppBar(
         title: 'Edit Profile',
         showBack: true,
@@ -170,113 +170,115 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
         ],
       ),
-      body: AbsorbPointer(
-        absorbing: isLoading,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(AppSizes.s20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(height: AppSizes.s16),
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ProfileAvatar(
-                      imageUrl: _uploadedAvatarUrl,
-                      displayName: _nameController.text,
-                      radius: 60,
-                    ),
-                    if (_isUploadingAvatar)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? AppColors.bgDark : Colors.white,
-                              width: 3,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppSizes.s36),
-                GlassCard(
-                  padding: AppSizes.cardPadding,
-                  child: Column(
+      body: SwaplyBackground(
+        child: AbsorbPointer(
+          absorbing: isLoading,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.all(AppSizes.s20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(height: AppSizes.s16),
+                  Stack(
+                    alignment: Alignment.center,
                     children: [
-                      PremiumTextField(
-                        controller: _nameController,
-                        label: 'Full Name',
-                        hint: 'Your display name',
-                        prefixIcon: Icon(Icons.person_outline_rounded, size: AppSizes.iconSm, color: AppColors.primary),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Name cannot be empty';
-                          return null;
-                        },
+                      ProfileAvatar(
+                        imageUrl: _uploadedAvatarUrl,
+                        displayName: _nameController.text,
+                        radius: 60,
                       ),
-                      SizedBox(height: AppSizes.s16),
-                      PremiumTextField(
-                        controller: _locationController,
-                        label: 'Location',
-                        hint: 'e.g. Seattle, WA',
-                        prefixIcon: Icon(Icons.location_on_outlined, size: AppSizes.iconSm, color: AppColors.primary),
-                      ),
-                      SizedBox(height: AppSizes.s16),
-                      PremiumTextField(
-                        controller: _bioController,
-                        label: 'Bio',
-                        hint: 'Tell fellow readers a bit about yourself\u2026',
-                        prefixIcon: Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: AppColors.primary),
-                        maxLines: 4,
+                      if (_isUploadingAvatar)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? AppColors.bgDark : Colors.white,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                SizedBox(height: AppSizes.s36),
-                PremiumButton(
-                  label: 'Save Changes',
-                  style: PremiumButtonStyle.gradient,
-                  isLoading: isLoading,
-                  icon: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
-                  onPressed: isLoading ? null : _saveProfile,
-                  height: AppSizes.buttonLg,
-                  borderRadius: AppSizes.radiusMd,
-                ),
-              ],
+                  SizedBox(height: AppSizes.s36),
+                  GlassCard(
+                    padding: AppSizes.cardPadding,
+                    child: Column(
+                      children: [
+                        PremiumTextField(
+                          controller: _nameController,
+                          label: 'Full Name',
+                          hint: 'Your display name',
+                          prefixIcon: Icon(Icons.person_outline_rounded, size: AppSizes.iconSm, color: AppColors.primary),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) return 'Name cannot be empty';
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: AppSizes.s16),
+                        PremiumTextField(
+                          controller: _locationController,
+                          label: 'Location',
+                          hint: 'e.g. Seattle, WA',
+                          prefixIcon: Icon(Icons.location_on_outlined, size: AppSizes.iconSm, color: AppColors.primary),
+                        ),
+                        SizedBox(height: AppSizes.s16),
+                        PremiumTextField(
+                          controller: _bioController,
+                          label: 'Bio',
+                          hint: 'Tell fellow readers a bit about yourself\u2026',
+                          prefixIcon: Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: AppColors.primary),
+                          maxLines: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: AppSizes.s36),
+                  PremiumButton(
+                    label: 'Save Changes',
+                    style: PremiumButtonStyle.gradient,
+                    isLoading: isLoading,
+                    icon: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                    onPressed: isLoading ? null : _saveProfile,
+                    height: AppSizes.buttonLg,
+                    borderRadius: AppSizes.radiusMd,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

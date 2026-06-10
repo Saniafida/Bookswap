@@ -1,4 +1,4 @@
-package com.example.bookswap;
+package com.example.swaply;
 
 import io.flutter.embedding.android.FlutterActivity;
 

@@ -1,4 +1,4 @@
--- BookSwap Profile module schema
+-- Swaply Profile module schema
 -- Run in Supabase SQL Editor
 
 -- Profiles table (extends auth.users)

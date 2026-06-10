@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- BookSwap — Complete Supabase Schema + RLS Policies
+-- Swaply — Complete Supabase Schema + RLS Policies
 -- Run this in Supabase SQL Editor (Dashboard → SQL Editor)
 -- Admin UID: 154ed9ca-c593-4d91-a700-fbea88b14672 → role = 'admin'
 -- Other users → role = 'user'
@@ -215,7 +215,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 INSERT INTO app_settings (key, value) VALUES
-  ('app_name',            'BookSwap'),
+  ('app_name',            'Swaply'),
   ('contact_email',       ''),
   ('privacy_policy',      ''),
   ('terms_and_conditions','')

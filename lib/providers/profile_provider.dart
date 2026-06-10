@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/services/supabase_service.dart';
-import '../models/post_model.dart';
+import '../data/models/listing_model.dart';
 import '../models/user_model.dart';
 
 enum ProfileStatus { initial, loading, loaded, error }
@@ -13,7 +13,7 @@ class ProfileProvider extends ChangeNotifier {
   ProfileStatus _status = ProfileStatus.initial;
   UserModel? _profile;
   UserModel? _viewedProfile;
-  List<PostModel> _userPosts = [];
+  List<ListingModel> _userListings = [];
   bool _isLoadingPosts = false;
   String? _errorMessage;
 
@@ -21,7 +21,7 @@ class ProfileProvider extends ChangeNotifier {
   ProfileStatus get status => _status;
   UserModel? get profile => _profile;
   UserModel? get viewedProfile => _viewedProfile;
-  List<PostModel> get userPosts => _userPosts;
+  List<ListingModel> get userListings => _userListings;
   String? get errorMessage => _errorMessage;
   bool get isLoading => _status == ProfileStatus.loading;
   bool get isLoadingPosts => _isLoadingPosts;
@@ -64,18 +64,18 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  // ── Fetch user posts for profile grid ─────────────────────────────────────
-  Future<void> fetchUserPosts(String userId) async {
+  // ── Fetch user listings for profile grid ─────────────────────────────────
+  Future<void> fetchUserListings(String userId) async {
     _isLoadingPosts = true;
     notifyListeners();
     try {
-      final data = await SupabaseService.table('posts')
-          .select('*, profiles(full_name, avatar_url)')
+      final data = await SupabaseService.table('listings')
+          .select('*, profiles!inner(full_name, avatar_url), categories!left(name, icon), listing_images!left(*)')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
-      _userPosts = (data as List).map((e) => PostModel.fromJson(e)).toList();
+      _userListings = (data as List).map((e) => ListingModel.fromJson(e)).toList();
     } catch (e) {
-      _userPosts = [];
+      _userListings = [];
     } finally {
       _isLoadingPosts = false;
       notifyListeners();
@@ -92,7 +92,7 @@ class ProfileProvider extends ChangeNotifier {
     } else {
       await fetchOtherProfile(targetUserId);
     }
-    await fetchUserPosts(targetUserId);
+    await fetchUserListings(targetUserId);
   }
 
   // ── Update profile ────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ class ProfileProvider extends ChangeNotifier {
   void reset() {
     _profile = null;
     _viewedProfile = null;
-    _userPosts = [];
+    _userListings = [];
     _status = ProfileStatus.initial;
     _errorMessage = null;
     _isLoadingPosts = false;

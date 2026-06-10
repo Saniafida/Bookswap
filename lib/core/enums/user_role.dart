@@ -1,4 +1,4 @@
-/// Defines every role a BookSwap user can have.
+/// Defines every role a Swaply user can have.
 ///
 /// Add new roles here as the product grows; the rest of the app
 /// (PermissionHelper, RouteGuard, UI badges) adapts automatically.

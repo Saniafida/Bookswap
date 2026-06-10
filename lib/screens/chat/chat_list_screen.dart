@@ -5,10 +5,10 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/routes/app_routes.dart';
-import '../../models/chat_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../widgets/premium_loading.dart';
+import '../../widgets/swaply_background.dart';
 import 'widgets/chat_tile.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -51,111 +51,108 @@ class _ChatListScreenState extends State<ChatListScreen> {
         Provider.of<AuthProvider>(context, listen: false).currentUser?.id;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSizes.s20,
-                    AppSizes.s16,
-                    AppSizes.s20,
-                    AppSizes.s12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.bgDark.withValues(alpha: 0.8)
-                        : AppColors.bgLight.withValues(alpha: 0.8),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.04)
-                            : AppColors.border.withValues(alpha: 0.4),
+      body: SwaplyBackground(
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSizes.s20,
+                      AppSizes.s16,
+                      AppSizes.s20,
+                      AppSizes.s12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgLight.withValues(alpha: 0.90),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: AppColors.border.withValues(alpha: 0.5),
+                        ),
                       ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Messages',
-                        style: GoogleFonts.poppins(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? AppColors.textPrimaryDark
-                              : AppColors.textPrimary,
-                          letterSpacing: -0.8,
-                          height: 1.1,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(AppSizes.s10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radiusSm),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            width: 0.5,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Messages',
+                          style: GoogleFonts.poppins(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimary,
+                            letterSpacing: -0.8,
+                            height: 1.1,
                           ),
                         ),
-                        child: Icon(
-                          Icons.edit_rounded,
-                          size: AppSizes.iconSm,
-                          color: AppColors.primary,
+                        Container(
+                          padding: const EdgeInsets.all(AppSizes.s10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radiusSm),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.edit_rounded,
+                            size: AppSizes.iconSm,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: chatProvider.isLoading
-                  ? const PageShimmer(itemCount: 5)
-                  : chatProvider.chats.isEmpty
-                      ? _buildEmptyState(theme, isDark)
-                      : RefreshIndicator(
-                          onRefresh: _loadChats,
-                          color: AppColors.primary,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSizes.s16,
-                              AppSizes.s16,
-                              AppSizes.s16,
-                              AppSizes.s24,
+              Expanded(
+                child: chatProvider.isLoading
+                    ? const PageShimmer(itemCount: 5)
+                    : chatProvider.chats.isEmpty
+                        ? _buildEmptyState(theme, isDark)
+                        : RefreshIndicator(
+                            onRefresh: _loadChats,
+                            color: AppColors.primary,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSizes.s16,
+                                AppSizes.s16,
+                                AppSizes.s16,
+                                AppSizes.s24,
+                              ),
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: chatProvider.chats.length,
+                              itemBuilder: (context, index) {
+                                final chat = chatProvider.chats[index];
+                                return ChatTile(
+                                  chat: chat,
+                                  currentUserId: currentUserId,
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.chat,
+                                      arguments: {
+                                        'chatId': chat.id,
+                                        'participantName':
+                                            chat.participantName,
+                                        'participantAvatarUrl':
+                                            chat.participantAvatarUrl,
+                                      },
+                                    );
+                                  },
+                                );
+                              },
                             ),
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: chatProvider.chats.length,
-                            itemBuilder: (context, index) {
-                              final chat = chatProvider.chats[index];
-                              return ChatTile(
-                                chat: chat,
-                                currentUserId: currentUserId,
-                                onTap: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.chat,
-                                    arguments: {
-                                      'chatId': chat.id,
-                                      'participantName':
-                                          chat.participantName,
-                                      'participantAvatarUrl':
-                                          chat.participantAvatarUrl,
-                                    },
-                                  );
-                                },
-                              );
-                            },
                           ),
-                        ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

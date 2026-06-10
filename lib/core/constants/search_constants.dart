@@ -1,45 +1,41 @@
-import '../../models/post_model.dart';
-
-/// Shared search categories and filter options.
 class SearchConstants {
   SearchConstants._();
 
-  static const List<String> categories = [
-    'Fiction',
-    'Non-Fiction',
-    'Academic',
-    'Sci-Fi',
-    'Biography',
-    'Children',
-    'Mystery',
-    'History',
+  static const List<String> listingTypes = [
+    'sell',
+    'exchange',
+    'donate',
+    'sellExchange',
+    'sell_exchange',
   ];
 
-  static String listingTypeLabel(ListingType type) {
-    switch (type) {
-      case ListingType.swap:
-        return 'Swap';
-      case ListingType.sell:
-        return 'Sell';
-      case ListingType.both:
-        return 'Both';
-      case ListingType.donate:
-        return 'Donate';
-    }
+  static const List<String> conditions = [
+    'brandNew',
+    'likeNew',
+    'good',
+    'fair',
+    'poor',
+  ];
+
+  static String listingTypeLabel(String type) {
+    return switch (type) {
+      'sell' => 'Sell',
+      'exchange' => 'Exchange',
+      'donate' => 'Donate',
+      'sellExchange' => 'Sell/Exchange',
+      'sell_exchange' => 'Sell/Exchange',
+      _ => type,
+    };
   }
 
-  static String conditionLabel(BookCondition condition) {
-    switch (condition) {
-      case BookCondition.brandNew:
-        return 'Brand New';
-      case BookCondition.likeNew:
-        return 'Like New';
-      case BookCondition.good:
-        return 'Good';
-      case BookCondition.fair:
-        return 'Fair';
-      case BookCondition.poor:
-        return 'Poor';
-    }
+  static String conditionLabel(String condition) {
+    return switch (condition) {
+      'brandNew' => 'Brand New',
+      'likeNew' => 'Like New',
+      'good' => 'Good',
+      'fair' => 'Fair',
+      'poor' => 'Poor',
+      _ => condition,
+    };
   }
 }

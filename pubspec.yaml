@@ -1,5 +1,5 @@
-name: bookswap
-description: "BookSwap — Trade books. Grow your shelf."
+name: swaply
+description: "Swaply — Buy, Sell, Exchange, Donate. Your marketplace."
 publish_to: 'none'
 version: 1.0.0+1
 

@@ -36,7 +36,7 @@ class SupabaseAuthService {
   static Future<bool> signInWithGoogle() =>
       SupabaseService.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.supabase.bookswap://login-callback',
+        redirectTo: 'io.supabase.swaply://login-callback',
         authScreenLaunchMode: LaunchMode.externalApplication,
       );
 

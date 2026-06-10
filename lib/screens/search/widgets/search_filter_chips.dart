@@ -5,24 +5,21 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/search_constants.dart';
-import '../../../models/post_model.dart';
 import '../../../providers/search_provider.dart';
 import '../../../providers/category_provider.dart';
 
 class SearchFilterChips extends StatelessWidget {
   const SearchFilterChips({super.key});
 
-  Color _typeColor(ListingType type) {
-    switch (type) {
-      case ListingType.swap:
-        return const Color(0xFF3B82F6);
-      case ListingType.sell:
-        return const Color(0xFF10B981);
-      case ListingType.both:
-        return const Color(0xFF8B5CF6);
-      case ListingType.donate:
-        return const Color(0xFFE11D48);
-    }
+  Color _typeColor(String type) {
+    return switch (type) {
+      'sell' => const Color(0xFF10B981),
+      'exchange' => const Color(0xFF3B82F6),
+      'donate' => const Color(0xFFE11D48),
+      'sellExchange' => const Color(0xFF8B5CF6),
+      'sell_exchange' => const Color(0xFF8B5CF6),
+      _ => AppColors.primary,
+    };
   }
 
   @override
@@ -68,7 +65,7 @@ class SearchFilterChips extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             children: [
-              ...ListingType.values.map((type) {
+              ...SearchConstants.listingTypes.map((type) {
                 final selected = search.selectedListingType == type;
                 final color = _typeColor(type);
                 return Padding(
@@ -90,7 +87,7 @@ class SearchFilterChips extends StatelessWidget {
                     ? Colors.white.withValues(alpha: 0.1)
                     : AppColors.border.withValues(alpha: 0.6),
               ),
-              ...BookCondition.values.map((condition) {
+              ...SearchConstants.conditions.map((condition) {
                 final selected = search.selectedCondition == condition;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),

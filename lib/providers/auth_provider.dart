@@ -199,9 +199,7 @@ class AuthProvider extends ChangeNotifier {
           fullName: supabaseUser.userMetadata?['full_name'] as String? ?? '',
           createdAt: supabaseUser.createdAt is DateTime
               ? supabaseUser.createdAt as DateTime
-              : supabaseUser.createdAt is String
-                  ? DateTime.parse(supabaseUser.createdAt as String)
-                  : DateTime.now(),
+              : DateTime.now(),
           role: RoleService.resolveRole(supabaseUser.id),
         );
         _status = AuthStatus.authenticated;

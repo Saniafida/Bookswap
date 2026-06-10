@@ -344,7 +344,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
               children: [
                 _buildTableRow('Metric Description', 'Active Value', 'Today Change', isDark, isHeader: true),
                 _buildTableRow('Registered Profiles', stats.totalUsers.toString(), '+${stats.newUsersToday}', isDark),
-                _buildTableRow('Books Listed for Exchange/Sale', stats.totalBooks.toString(), '+${stats.newBooksToday}', isDark),
+                _buildTableRow('Listings Posted', stats.totalBooks.toString(), '+${stats.newBooksToday}', isDark),
                 _buildTableRow('Real-time Active Chats', stats.totalChats.toString(), '-', isDark),
                 _buildTableRow('Actionable Reports Log', stats.pendingReports.toString(), '-', isDark),
                 _buildTableRow('Announcement Board', stats.activeAnnouncements.toString(), '-', isDark),

@@ -7,13 +7,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
-import '../../models/post_model.dart';
+import '../../data/models/listing_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/post_provider.dart';
+import '../../providers/listing_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/premium_button.dart';
 import '../../widgets/premium_textfield.dart';
+import '../../widgets/swaply_background.dart';
 import '../bottom_nav/bottom_nav_screen.dart';
 
 class _Option<T> {
@@ -35,15 +36,14 @@ class _AddPostScreenState extends State<AddPostScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _authorController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   final _locationController = TextEditingController();
 
   List<XFile> _selectedImages = [];
   String? _selectedCategory;
-  BookCondition _selectedCondition = BookCondition.good;
-  ListingType _selectedListingType = ListingType.swap;
+  ItemCondition _selectedCondition = ItemCondition.good;
+  ListingType _selectedListingType = ListingType.exchange;
 
   final ScrollController _scrollController = ScrollController();
   double _progress = 0.0;
@@ -52,18 +52,18 @@ class _AddPostScreenState extends State<AddPostScreen>
 
   static const int _maxImages = 5;
 
-  static final List<_Option<BookCondition>> _conditions = [
-    _Option(BookCondition.brandNew, 'Brand New', Icons.star_rounded, const Color(0xFF059669)),
-    _Option(BookCondition.likeNew, 'Like New', Icons.star_half_rounded, const Color(0xFF0EA5E9)),
-    _Option(BookCondition.good, 'Good', Icons.thumb_up_rounded, const Color(0xFF6366F1)),
-    _Option(BookCondition.fair, 'Fair', Icons.thumbs_up_down_rounded, const Color(0xFFF59E0B)),
-    _Option(BookCondition.poor, 'Poor', Icons.thumb_down_rounded, const Color(0xFFEF4444)),
+  static final List<_Option<ItemCondition>> _conditions = [
+    _Option(ItemCondition.brandNew, 'Brand New', Icons.star_rounded, const Color(0xFF059669)),
+    _Option(ItemCondition.likeNew, 'Like New', Icons.star_half_rounded, const Color(0xFF0EA5E9)),
+    _Option(ItemCondition.good, 'Good', Icons.thumb_up_rounded, const Color(0xFF6366F1)),
+    _Option(ItemCondition.fair, 'Fair', Icons.thumbs_up_down_rounded, const Color(0xFFF59E0B)),
+    _Option(ItemCondition.poor, 'Poor', Icons.thumb_down_rounded, const Color(0xFFEF4444)),
   ];
 
   static final List<_Option<ListingType>> _listingTypes = [
-    _Option(ListingType.swap, 'Exchange', Icons.swap_horiz_rounded, const Color(0xFF2563EB)),
+    _Option(ListingType.exchange, 'Exchange', Icons.swap_horiz_rounded, const Color(0xFF2563EB)),
     _Option(ListingType.sell, 'Sell', Icons.sell_rounded, const Color(0xFF059669)),
-    _Option(ListingType.both, 'Both', Icons.compare_arrows_rounded, const Color(0xFF7C3AED)),
+    _Option(ListingType.sellExchange, 'Both', Icons.compare_arrows_rounded, const Color(0xFF7C3AED)),
     _Option(ListingType.donate, 'Donate', Icons.volunteer_activism_rounded, const Color(0xFFE11D48)),
   ];
 
@@ -91,7 +91,6 @@ class _AddPostScreenState extends State<AddPostScreen>
   @override
   void dispose() {
     _titleController.dispose();
-    _authorController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
     _locationController.dispose();
@@ -154,15 +153,14 @@ class _AddPostScreenState extends State<AddPostScreen>
 
   void _clearForm() {
     _titleController.clear();
-    _authorController.clear();
     _descriptionController.clear();
     _priceController.clear();
     _locationController.clear();
     setState(() {
       _selectedImages = [];
       _selectedCategory = null;
-      _selectedCondition = BookCondition.good;
-      _selectedListingType = ListingType.swap;
+      _selectedCondition = ItemCondition.good;
+      _selectedListingType = ListingType.exchange;
     });
   }
 
@@ -186,33 +184,29 @@ class _AddPostScreenState extends State<AddPostScreen>
     }
 
     final price = (_selectedListingType == ListingType.sell ||
-            _selectedListingType == ListingType.both)
+            _selectedListingType == ListingType.sellExchange)
         ? double.tryParse(_priceController.text.trim())
         : null;
 
-    final post = PostModel(
-      id: '',
+    final cp = Provider.of<CategoryProvider>(context, listen: false);
+    final categoryModel = cp.categories.firstWhere(
+        (c) => c.name == _selectedCategory,
+        orElse: () => cp.categories.first);
+
+    final listingProvider = Provider.of<ListingProvider>(context, listen: false);
+    final success = await listingProvider.createListing(
       userId: userId,
       title: _titleController.text.trim(),
-      author: _authorController.text.trim(),
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
-      imageUrl: null,
-      condition: _selectedCondition,
-      listingType: _selectedListingType,
+      condition: _selectedCondition.name,
+      listingType: _selectedListingType.name,
       price: price,
-      category: _selectedCategory,
+      categoryId: categoryModel.id,
       location: _locationController.text.trim().isEmpty
           ? null
           : _locationController.text.trim(),
-      isAvailable: true,
-      createdAt: DateTime.now(),
-    );
-
-    final postProvider = Provider.of<PostProvider>(context, listen: false);
-    final success = await postProvider.createPost(
-      post,
       imageFiles: _selectedImages,
     );
 
@@ -229,7 +223,7 @@ class _AddPostScreenState extends State<AddPostScreen>
       }
     } else {
       _showSnack(
-        postProvider.errorMessage ?? 'Failed to publish. Try again.',
+        listingProvider.errorMessage ?? 'Failed to publish. Try again.',
         isError: true,
       );
     }
@@ -251,124 +245,119 @@ class _AddPostScreenState extends State<AddPostScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final isLoading = context.select<PostProvider, bool>((p) => p.isLoading);
+    final isLoading = context.select<ListingProvider, bool>((p) => p.isLoading);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: _buildAppBar(theme, isDark, isLoading),
-      body: Stack(
-        children: [
-          AbsorbPointer(
-            absorbing: isLoading,
-            child: Form(
-              key: _formKey,
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _SectionHeader(
-                          title: 'Photos',
-                          subtitle: 'First photo is the cover \u00b7 Drag to reorder \u00b7 Max $_maxImages',
-                        ),
-                        SizedBox(height: AppSizes.s12),
-                        _buildImagePicker(theme, isDark),
-                        SizedBox(height: AppSizes.s28),
-
-                        GlassCard(
-                          padding: AppSizes.cardPadding,
-                          child: Column(
-                            children: [
-                              PremiumTextField(
-                                controller: _titleController,
-                                label: 'Book Title',
-                                hint: 'Enter the title of the book',
-                                prefixIcon: Icon(Icons.menu_book_rounded, size: AppSizes.iconSm, color: AppColors.primary),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'This field is required' : null,
-                              ),
-                              SizedBox(height: AppSizes.s16),
-                              PremiumTextField(
-                                controller: _authorController,
-                                label: 'Author',
-                                hint: 'Who wrote this book?',
-                                prefixIcon: Icon(Icons.person_rounded, size: AppSizes.iconSm, color: AppColors.primary),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'This field is required' : null,
-                              ),
-                              SizedBox(height: AppSizes.s16),
-                              PremiumTextField(
-                                controller: _descriptionController,
-                                label: 'Description',
-                                hint: 'Describe the book, its condition, why you\u2019re listing it\u2026',
-                                prefixIcon: Icon(Icons.notes_rounded, size: AppSizes.iconSm, color: AppColors.primary),
-                                maxLines: 4,
-                              ),
-                              SizedBox(height: AppSizes.s16),
-                              PremiumTextField(
-                                controller: _locationController,
-                                label: 'Pickup Location',
-                                hint: 'e.g. Downtown, Lahore',
-                                prefixIcon: Icon(Icons.location_on_rounded, size: AppSizes.iconSm, color: AppColors.primary),
-                              ),
-                            ],
+      body: SwaplyBackground(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: isLoading,
+                child: Form(
+                key: _formKey,
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _SectionHeader(
+                            title: 'Photos',
+                            subtitle: 'First photo is the cover \u00b7 Drag to reorder \u00b7 Max $_maxImages',
                           ),
-                        ),
-                        SizedBox(height: AppSizes.s28),
+                          SizedBox(height: AppSizes.s12),
+                          _buildImagePicker(theme, isDark),
+                          SizedBox(height: AppSizes.s28),
 
-                        _SectionHeader(title: 'Category'),
-                        SizedBox(height: AppSizes.s12),
-                        _buildCategoryGrid(theme, isDark),
-                        SizedBox(height: AppSizes.s28),
+                          GlassCard(
+                            padding: AppSizes.cardPadding,
+                            child: Column(
+                              children: [
+                                PremiumTextField(
+                                  controller: _titleController,
+                                  label: 'Book Title',
+                                  hint: 'Enter the title of the book',
+                                  prefixIcon: Icon(Icons.menu_book_rounded, size: AppSizes.iconSm, color: AppColors.primary),
+                                  validator: (v) => (v == null || v.trim().isEmpty) ? 'This field is required' : null,
+                                ),
+                                SizedBox(height: AppSizes.s16),
+                                PremiumTextField(
+                                  controller: _descriptionController,
+                                  label: 'Description',
+                                  hint: 'Describe the book, its condition, why you\u2019re listing it\u2026',
+                                  prefixIcon: Icon(Icons.notes_rounded, size: AppSizes.iconSm, color: AppColors.primary),
+                                  maxLines: 4,
+                                ),
+                                SizedBox(height: AppSizes.s16),
+                                PremiumTextField(
+                                  controller: _locationController,
+                                  label: 'Pickup Location',
+                                  hint: 'e.g. Downtown, Lahore',
+                                  prefixIcon: Icon(Icons.location_on_rounded, size: AppSizes.iconSm, color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: AppSizes.s28),
 
-                        _SectionHeader(title: 'Condition'),
-                        SizedBox(height: AppSizes.s12),
-                        _buildConditionSelector(theme, isDark),
-                        SizedBox(height: AppSizes.s28),
+                          _SectionHeader(title: 'Category'),
+                          SizedBox(height: AppSizes.s12),
+                          _buildCategoryGrid(theme, isDark),
+                          SizedBox(height: AppSizes.s28),
 
-                        _SectionHeader(title: 'Listing Type'),
-                        SizedBox(height: AppSizes.s12),
-                        _buildListingTypeSelector(theme, isDark),
+                          _SectionHeader(title: 'Condition'),
+                          SizedBox(height: AppSizes.s12),
+                          _buildConditionSelector(theme, isDark),
+                          SizedBox(height: AppSizes.s28),
 
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOutCubic,
-                          child: (_selectedListingType == ListingType.sell ||
-                                  _selectedListingType == ListingType.both)
-                              ? Padding(
-                                  padding: EdgeInsets.only(top: AppSizes.s16),
-                                  child: GlassCard(
-                                    padding: AppSizes.cardPadding,
-                                    child: PremiumTextField(
-                                      controller: _priceController,
-                                      label: 'Price (USD)',
-                                      hint: '0.00',
-                                      prefixIcon: Icon(Icons.attach_money_rounded, size: AppSizes.iconSm, color: AppColors.primary),
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                                      ],
-                                      validator: (v) {
-                                        if (v == null || v.trim().isEmpty) return 'Enter a price';
-                                        final n = double.tryParse(v.trim());
-                                        if (n == null || n <= 0) return 'Enter a valid price > 0';
-                                        return null;
-                                      },
+                          _SectionHeader(title: 'Listing Type'),
+                          SizedBox(height: AppSizes.s12),
+                          _buildListingTypeSelector(theme, isDark),
+
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                            child: (_selectedListingType == ListingType.sell ||
+                                    _selectedListingType == ListingType.sellExchange)
+                                ? Padding(
+                                    padding: EdgeInsets.only(top: AppSizes.s16),
+                                    child: GlassCard(
+                                      padding: AppSizes.cardPadding,
+                                      child: PremiumTextField(
+                                        controller: _priceController,
+                                        label: 'Price (USD)',
+                                        hint: '0.00',
+                                        prefixIcon: Icon(Icons.attach_money_rounded, size: AppSizes.iconSm, color: AppColors.primary),
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                                        ],
+                                        validator: (v) {
+                                          if (v == null || v.trim().isEmpty) return 'Enter a price';
+                                          final n = double.tryParse(v.trim());
+                                          if (n == null || n <= 0) return 'Enter a valid price > 0';
+                                          return null;
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ]),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ]),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          _buildPublishBar(theme, isLoading),
-        ],
+            ),
+            _buildPublishBar(theme, isLoading),
+          ],
+        ),
       ),
     );
   }

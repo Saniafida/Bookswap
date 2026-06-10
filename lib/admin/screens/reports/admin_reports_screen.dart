@@ -226,13 +226,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> with SingleTick
             const Divider(height: 1),
             const SizedBox(height: AppSizes.s12),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              SizedBox(width: 130, child: PremiumButton(
+              Expanded(child: PremiumButton(
                 label: 'Dismiss', icon: const Icon(Icons.close_rounded, size: 14),
                 style: PremiumButtonStyle.secondary, height: AppSizes.buttonMd,
                 onPressed: () => _showResolveDismissDialog(context, report, false),
               )),
               const SizedBox(width: AppSizes.s12),
-              SizedBox(width: 130, child: PremiumButton(
+              Expanded(child: PremiumButton(
                 label: 'Resolve', icon: const Icon(Icons.done_all_rounded, size: 14),
                 color: AppColors.success, height: AppSizes.buttonMd,
                 onPressed: () => _showResolveDismissDialog(context, report, true),
@@ -258,9 +258,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> with SingleTick
     String titleText = '';
     IconData itemIcon;
     if (report.reportedPostId != null) {
-      typeLabel = 'REPORTED BOOK';
-      titleText = report.reportedPostTitle ?? 'Unknown Book';
-      itemIcon = Icons.menu_book_rounded;
+      typeLabel = 'REPORTED LISTING';
+      titleText = report.reportedPostTitle ?? 'Unknown Listing';
+      itemIcon = Icons.inventory_2_rounded;
     } else {
       typeLabel = 'REPORTED USER';
       titleText = report.reportedUserName ?? 'Unknown User';

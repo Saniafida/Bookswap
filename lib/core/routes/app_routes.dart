@@ -29,6 +29,8 @@ class AppRoutes {
   static const String search = '/search';
   static const String addPost = '/add-post';
   static const String postDetails = '/post-details';
+  static const String createListing = '/create-listing';
+  static const String listingDetails = '/listing-details';
   static const String chat = '/chat';
   static const String profile = '/profile';
   static const String editProfile = '/edit-profile';
@@ -95,11 +97,16 @@ class AppRoutes {
         return const SearchScreen();
 
       case addPost:
+      case createListing:
         return const AddPostScreen();
 
       case postDetails:
         final args = settings.arguments as Map<String, dynamic>?;
-        return PostDetailsScreen(postId: args?['postId'] ?? '');
+        return ListingDetailScreen(listingId: args?['postId'] ?? '');
+
+      case listingDetails:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return ListingDetailScreen(listingId: args?['listingId'] ?? '');
 
       case chat:
         final args = settings.arguments as Map<String, dynamic>?;
@@ -127,7 +134,7 @@ class AppRoutes {
   // ── Transition helpers ────────────────────────────────────────────────────
 
   static RouteTransitionsBuilder _transitionFor(String name) {
-    if (name == addPost) return _slideUpTransition;
+    if (name == addPost || name == createListing) return _slideUpTransition;
     if (name == splash || name == bottomNav || name == home) {
       return _fadeTransition;
     }
@@ -135,7 +142,7 @@ class AppRoutes {
   }
 
   static Duration _durationFor(String name) {
-    if (name == addPost) return const Duration(milliseconds: 400);
+    if (name == addPost || name == createListing) return const Duration(milliseconds: 400);
     if (name == splash) return const Duration(milliseconds: 300);
     return const Duration(milliseconds: 350);
   }

@@ -6,7 +6,7 @@ class AppSettingsModel {
   final String termsAndConditions;
 
   const AppSettingsModel({
-    this.appName = 'BookSwap',
+    this.appName = 'Swaply',
     this.contactEmail = '',
     this.privacyPolicy = '',
     this.termsAndConditions = '',
@@ -16,7 +16,7 @@ class AppSettingsModel {
   factory AppSettingsModel.fromRows(List<Map<String, dynamic>> rows) {
     final map = {for (final r in rows) r['key'] as String: r['value'] as String? ?? ''};
     return AppSettingsModel(
-      appName: map['app_name'] ?? 'BookSwap',
+      appName: map['app_name'] ?? 'Swaply',
       contactEmail: map['contact_email'] ?? '',
       privacyPolicy: map['privacy_policy'] ?? '',
       termsAndConditions: map['terms_and_conditions'] ?? '',

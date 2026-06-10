@@ -131,12 +131,10 @@ class _ChatScreenState extends State<ChatScreen> {
         participantName.isNotEmpty ? participantName[0].toUpperCase() : 'R';
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+      backgroundColor: AppColors.bgLight,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        backgroundColor: isDark
-            ? AppColors.bgDark.withValues(alpha: 0.85)
-            : Colors.white.withValues(alpha: 0.85),
+        backgroundColor: Colors.white.withValues(alpha: 0.92),
         elevation: 0,
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
@@ -146,23 +144,17 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: Container(
               padding: const EdgeInsets.all(AppSizes.s8),
               decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : AppColors.bgSurface.withValues(alpha: 0.7),
+                color: AppColors.bgSurface.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                 border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : AppColors.border.withValues(alpha: 0.4),
-                  width: 0.5,
+                  color: AppColors.border.withValues(alpha: 0.5),
+                  width: 1,
                 ),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: AppSizes.iconSm,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             onPressed: () => Navigator.pop(context),
@@ -219,7 +211,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 Text(
-                  'BookSwap Reader',
+                  'Swaply User',
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     fontWeight: FontWeight.w400,
@@ -393,15 +385,11 @@ class _ChatScreenState extends State<ChatScreen> {
             AppSizes.s12 + MediaQuery.of(context).padding.bottom,
           ),
           decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.bgDark.withValues(alpha: 0.85)
-                : Colors.white.withValues(alpha: 0.85),
+            color: Colors.white.withValues(alpha: 0.92),
             border: Border(
               top: BorderSide(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : AppColors.border.withValues(alpha: 0.4),
-                width: 0.5,
+                color: AppColors.border.withValues(alpha: 0.5),
+                width: 1,
               ),
             ),
           ),
@@ -414,16 +402,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     horizontal: AppSizes.s16,
                   ),
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.06)
-                        : AppColors.bgSurface.withValues(alpha: 0.5),
+                    color: AppColors.bgSurface.withValues(alpha: 0.60),
                     borderRadius:
                         BorderRadius.circular(AppSizes.radiusLg),
                     border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : AppColors.border.withValues(alpha: 0.3),
-                      width: 0.5,
+                      color: AppColors.border.withValues(alpha: 0.5),
+                      width: 1,
                     ),
                   ),
                   child: TextField(

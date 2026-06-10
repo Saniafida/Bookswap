@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/admin_user_provider.dart';
-import 'package:bookswap/models/user_model.dart';
-import 'package:bookswap/core/enums/user_role.dart';
+import 'package:swaply/models/user_model.dart';
+import 'package:swaply/core/enums/user_role.dart';
 import '../../widgets/admin_search_bar.dart';
 import '../../widgets/admin_empty_state.dart';
 import '../../widgets/admin_confirm_dialog.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../widgets/glass_card.dart';
-import '../../../widgets/premium_button.dart';
 import 'admin_user_detail_screen.dart';
 
 class AdminUsersScreen extends StatefulWidget {
@@ -145,7 +144,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               const SizedBox(height: AppSizes.s4),
               Text('View, search, ban/unban, and modify roles of platform accounts.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: AppSizes.s12),
-              Row(children: [filterBtn, const Spacer(), AdminSearchBar(hintText: 'Search users...', onChanged: (v) => provider.setSearch(v))]),
+              Row(children: [filterBtn, const SizedBox(width: AppSizes.s8), Expanded(child: AdminSearchBar(hintText: 'Search users...', onChanged: (v) => provider.setSearch(v)))]),
             ],
           );
         }
@@ -161,7 +160,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ],
             ),
             Row(children: [
-              SizedBox(width: 240, child: AdminSearchBar(hintText: 'Search users...', onChanged: (v) => provider.setSearch(v))),
+              Expanded(child: AdminSearchBar(hintText: 'Search users...', onChanged: (v) => provider.setSearch(v))),
               const SizedBox(width: AppSizes.s12),
               filterBtn,
             ]),

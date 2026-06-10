@@ -6,15 +6,12 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/admin_book_provider.dart';
 import '../../providers/admin_category_provider.dart';
-import 'package:bookswap/models/post_model.dart';
-import 'package:bookswap/core/services/storage_service.dart';
-import 'package:bookswap/core/services/supabase_service.dart';
-import '../../widgets/admin_section_header.dart';
+import '../../../core/services/storage_service.dart';
+import '../../../core/services/supabase_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/premium_button.dart';
-import '../../../widgets/premium_textfield.dart';
 
 class AdminAddBookScreen extends StatefulWidget {
   const AdminAddBookScreen({super.key});
@@ -26,21 +23,30 @@ class AdminAddBookScreen extends StatefulWidget {
 class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _authorController = TextEditingController();
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   final _locationController = TextEditingController();
-  String? _category;
-  BookCondition _condition = BookCondition.good;
-  ListingType _listingType = ListingType.swap;
+  String? _categoryId;
+  late String _condition;
+  late String _listingType;
+  late String _status;
+  bool _isFeatured = false;
+  bool _isApproved = true;
   bool _isSaving = false;
   Uint8List? _imageBytes;
   String? _imageName;
   bool _isPickingImage = false;
 
+  static const List<String> _conditionOptions = ['brandNew', 'likeNew', 'good', 'fair', 'poor'];
+  static const List<String> _listingTypeOptions = ['sell', 'exchange', 'donate', 'sell_exchange'];
+  static const List<String> _statusOptions = ['active', 'sold', 'removed', 'expired'];
+
   @override
   void initState() {
     super.initState();
+    _condition = 'good';
+    _listingType = 'exchange';
+    _status = 'active';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminCategoryProvider>().fetchCategories();
     });
@@ -49,7 +55,6 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _authorController.dispose();
     _descController.dispose();
     _priceController.dispose();
     _locationController.dispose();
@@ -78,11 +83,13 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     try {
-      String? imageUrl;
+      List<Map<String, dynamic>> imageData = [];
       if (_imageBytes != null && _imageName != null) {
         final userId = SupabaseService.currentUser?.id ?? 'admin';
         final urls = await StorageService.uploadMultipleImages([(bytes: _imageBytes!, name: _imageName!)], userId);
-        if (urls.isNotEmpty) imageUrl = urls.first;
+        if (urls.isNotEmpty) {
+          imageData = [{'url': urls.first, 'sort_order': 0}];
+        }
       }
       final priceVal = double.tryParse(_priceController.text);
       final userId = SupabaseService.currentUser?.id;
@@ -90,24 +97,23 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
       final data = {
         'user_id': userId,
         'title': _titleController.text.trim(),
-        'author': _authorController.text.trim(),
         'description': _descController.text.trim().isEmpty ? null : _descController.text.trim(),
-        'condition': _condition.name,
-        'listing_type': _listingType.name,
-        'price': (_listingType == ListingType.sell || _listingType == ListingType.both) ? priceVal : null,
-        'category': _category,
+        'condition': _condition,
+        'listing_type': _listingType,
+        'price': (_listingType == 'sell' || _listingType == 'sell_exchange') ? priceVal : null,
+        'category_id': _categoryId,
         'location': _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
-        'is_available': true,
-        'is_featured': false,
-        if (imageUrl != null) 'image_url': imageUrl,
+        'status': _status,
+        'is_featured': _isFeatured,
+        'is_approved': _isApproved,
       };
-      final success = await context.read<AdminBookProvider>().createBook(data);
+      final success = await context.read<AdminBookProvider>().createListing(data, images: imageData);
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Book listing created successfully!'), backgroundColor: AppColors.success));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Listing created successfully!'), backgroundColor: AppColors.success));
         Navigator.of(context).pop();
       } else if (mounted) {
         final error = context.read<AdminBookProvider>().error;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create book: ${error ?? 'Unknown error'}'), backgroundColor: AppColors.error));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create listing: ${error ?? 'Unknown error'}'), backgroundColor: AppColors.error));
       }
     } catch (e) {
       if (mounted) {
@@ -121,7 +127,7 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
   @override
   Widget build(BuildContext context) {
     final categoryProvider = context.watch<AdminCategoryProvider>();
-    final showPrice = _listingType == ListingType.sell || _listingType == ListingType.both;
+    final showPrice = _listingType == 'sell' || _listingType == 'sell_exchange';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -131,7 +137,7 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary), onPressed: () => Navigator.of(context).pop()),
-        title: Text('Add Book Listing', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text('Add Listing', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSizes.s12),
@@ -191,12 +197,12 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel('Book Title *'),
+                        _buildLabel('Listing Title *'),
                         TextFormField(
                           controller: _titleController,
                           style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
                           decoration: InputDecoration(
-                            hintText: 'Enter book title',
+                            hintText: 'Enter listing title',
                             hintStyle: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 14),
                             filled: true,
                             fillColor: isDark ? AppColors.bgSurfaceDark.withValues(alpha: 0.5) : AppColors.bgSurface.withValues(alpha: 0.3),
@@ -208,41 +214,24 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                           validator: (val) => val == null || val.trim().isEmpty ? 'Title is required' : null,
                         ),
                         const SizedBox(height: AppSizes.s20),
-                        _buildLabel('Author *'),
-                        TextFormField(
-                          controller: _authorController,
-                          style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                          decoration: InputDecoration(
-                            hintText: 'Enter author name',
-                            hintStyle: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 14),
-                            filled: true,
-                            fillColor: isDark ? AppColors.bgSurfaceDark.withValues(alpha: 0.5) : AppColors.bgSurface.withValues(alpha: 0.3),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm), borderSide: BorderSide(color: (isDark ? AppColors.borderDark : AppColors.border).withValues(alpha: 0.6))),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm), borderSide: BorderSide(color: (isDark ? AppColors.borderDark : AppColors.border).withValues(alpha: 0.6))),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.s16, vertical: AppSizes.s14),
-                          ),
-                          validator: (val) => val == null || val.trim().isEmpty ? 'Author is required' : null,
-                        ),
-                        const SizedBox(height: AppSizes.s20),
                         LayoutBuilder(builder: (ctx, constraints) {
                           final isNarrow = constraints.maxWidth < 450;
                           final categoryField = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             _buildLabel('Category'),
                             _buildDropdown<String?>(
-                              value: _category,
+                              value: _categoryId,
                               hint: 'Select category',
                               isDark: isDark,
-                              items: [const DropdownMenuItem<String?>(value: null, child: Text('None')), ...categoryProvider.categories.map((c) => DropdownMenuItem<String?>(value: c.name, child: Text(c.name)))],
-                              onChanged: (val) => setState(() => _category = val),
+                              items: [const DropdownMenuItem<String?>(value: null, child: Text('None')), ...categoryProvider.categories.map((c) => DropdownMenuItem<String?>(value: c.id, child: Text(c.name)))],
+                              onChanged: (val) => setState(() => _categoryId = val),
                             ),
                           ]);
                           final conditionField = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             _buildLabel('Condition *'),
-                            _buildDropdown<BookCondition>(
+                            _buildDropdown<String>(
                               value: _condition,
                               isDark: isDark,
-                              items: BookCondition.values.map((c) => DropdownMenuItem<BookCondition>(value: c, child: Text(_conditionLabel(c)))).toList(),
+                              items: _conditionOptions.map((c) => DropdownMenuItem<String>(value: c, child: Text(_conditionLabel(c)))).toList(),
                               onChanged: (val) { if (val != null) setState(() => _condition = val); },
                             ),
                           ]);
@@ -255,10 +244,10 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                           final isNarrow = constraints.maxWidth < 450;
                           final listingWidget = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             _buildLabel('Listing Type *'),
-                            _buildDropdown<ListingType>(
+                            _buildDropdown<String>(
                               value: _listingType,
                               isDark: isDark,
-                              items: ListingType.values.map((t) => DropdownMenuItem<ListingType>(value: t, child: Text(t.name.toUpperCase()))).toList(),
+                              items: _listingTypeOptions.map((t) => DropdownMenuItem<String>(value: t, child: Text(_listingTypeLabel(t)))).toList(),
                               onChanged: (val) { if (val != null) setState(() => _listingType = val); },
                             ),
                           ]);
@@ -290,6 +279,44 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                               : Row(children: [Expanded(child: listingWidget), const SizedBox(width: AppSizes.s16), Expanded(child: priceWidget)]);
                         }),
                         const SizedBox(height: AppSizes.s20),
+                        LayoutBuilder(builder: (ctx, constraints) {
+                          final isNarrow = constraints.maxWidth < 450;
+                          final statusWidget = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel('Status *'),
+                            _buildDropdown<String>(
+                              value: _status,
+                              isDark: isDark,
+                              items: _statusOptions.map((s) => DropdownMenuItem<String>(value: s, child: Text(s[0].toUpperCase() + s.substring(1)))).toList(),
+                              onChanged: (val) { if (val != null) setState(() => _status = val); },
+                            ),
+                          ]);
+                          return isNarrow
+                              ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [statusWidget])
+                              : Row(children: [Expanded(child: statusWidget)]);
+                        }),
+                        const SizedBox(height: AppSizes.s20),
+                        Row(
+                          children: [
+                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              _buildLabel('Featured'),
+                              Switch(
+                                value: _isFeatured,
+                                activeColor: AppColors.warning,
+                                onChanged: (val) => setState(() => _isFeatured = val),
+                              ),
+                            ]),
+                            const SizedBox(width: AppSizes.s24),
+                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              _buildLabel('Approved'),
+                              Switch(
+                                value: _isApproved,
+                                activeColor: AppColors.success,
+                                onChanged: (val) => setState(() => _isApproved = val),
+                              ),
+                            ]),
+                          ],
+                        ),
+                        const SizedBox(height: AppSizes.s20),
                         _buildLabel('Location'),
                         TextFormField(
                           controller: _locationController,
@@ -312,7 +339,7 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                           maxLines: 4,
                           style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
                           decoration: InputDecoration(
-                            hintText: 'Enter book description or details...',
+                            hintText: 'Enter listing description...',
                             hintStyle: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 14),
                             filled: true,
                             fillColor: isDark ? AppColors.bgSurfaceDark.withValues(alpha: 0.5) : AppColors.bgSurface.withValues(alpha: 0.3),
@@ -327,7 +354,7 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                   ),
                   const SizedBox(height: AppSizes.s28),
                   PremiumButton(
-                    label: _isSaving ? 'Creating...' : 'Create Book Listing',
+                    label: _isSaving ? 'Creating...' : 'Create Listing',
                     icon: _isSaving ? null : const Icon(Icons.add_circle_outline_rounded, size: 18),
                     isLoading: _isSaving,
                     style: PremiumButtonStyle.gradient,
@@ -369,5 +396,6 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
 
   Widget _buildSectionTitle(String title) => Text(title, style: GoogleFonts.poppins(color: Theme.of(context).colorScheme.onSurface, fontSize: 13, fontWeight: FontWeight.w700));
   Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: AppSizes.s8), child: Text(text, style: GoogleFonts.poppins(color: Theme.of(context).brightness == Brightness.dark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)));
-  String _conditionLabel(BookCondition c) => switch (c) { BookCondition.brandNew => 'Brand New', BookCondition.likeNew => 'Like New', BookCondition.good => 'Good', BookCondition.fair => 'Fair', BookCondition.poor => 'Poor' };
+  String _conditionLabel(String c) => switch (c) { 'brandNew' => 'Brand New', 'likeNew' => 'Like New', 'good' => 'Good', 'fair' => 'Fair', 'poor' => 'Poor', _ => c };
+  String _listingTypeLabel(String t) => switch (t) { 'sell' => 'For Sale', 'exchange' => 'For Exchange', 'donate' => 'Free', 'sell_exchange' => 'Sell or Exchange', _ => t };
 }

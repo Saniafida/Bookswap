@@ -5,7 +5,10 @@ import 'core/services/supabase_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_routes.dart';
 import 'providers/auth_provider.dart';
-import 'providers/post_provider.dart';
+import 'providers/listing_provider.dart';
+import 'providers/home_provider.dart';
+import 'providers/favorite_provider.dart';
+import 'providers/report_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/search_provider.dart';
@@ -40,11 +43,11 @@ Future<void> main() async {
   // Initialize Supabase
   await SupabaseService.initialize();
 
-  runApp(const BookSwapApp());
+  runApp(const SwaplyApp());
 }
 
-class BookSwapApp extends StatelessWidget {
-  const BookSwapApp({super.key});
+class SwaplyApp extends StatelessWidget {
+  const SwaplyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -54,13 +57,34 @@ class BookSwapApp extends StatelessWidget {
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(),
         ),
-        ChangeNotifierProxyProvider<AuthProvider, PostProvider>(
-          create: (_) => PostProvider(),
-          update: (_, auth, post) {
-            // Refresh posts when user signs in
-            if (auth.isAuthenticated) post?.fetchPosts();
-            return post ?? PostProvider();
+        ChangeNotifierProxyProvider<AuthProvider, ListingProvider>(
+          create: (_) => ListingProvider(),
+          update: (_, auth, listing) {
+            if (auth.isAuthenticated) {
+              listing?.subscribeToListings();
+              listing?.fetchListings();
+            }
+            return listing ?? ListingProvider();
           },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, HomeProvider>(
+          create: (_) => HomeProvider(),
+          update: (_, auth, home) {
+            if (auth.isAuthenticated) home?.fetchHomeData();
+            return home ?? HomeProvider();
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, FavoriteProvider>(
+          create: (_) => FavoriteProvider(),
+          update: (_, auth, fav) {
+            if (auth.isAuthenticated && auth.currentUser != null) {
+              fav?.fetchFavorites(auth.currentUser!.id);
+            }
+            return fav ?? FavoriteProvider();
+          },
+        ),
+        ChangeNotifierProvider<ReportProvider>(
+          create: (_) => ReportProvider(),
         ),
         ChangeNotifierProxyProvider<AuthProvider, ProfileProvider>(
           create: (_) => ProfileProvider(),
@@ -118,7 +142,7 @@ class BookSwapApp extends StatelessWidget {
             ),
           ),
           MaterialApp(
-            title: 'BookSwap',
+            title: 'Swaply',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,

@@ -6,10 +6,12 @@ import '../../core/routes/app_routes.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../providers/listing_provider.dart';
 import '../../widgets/custom_appbar.dart';
 import '../../widgets/premium_button.dart';
 import '../../widgets/premium_dialogs.dart';
 import '../../widgets/premium_loading.dart';
+import '../../widgets/swaply_background.dart';
 import '../bottom_nav/bottom_nav_screen.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_posts_grid.dart';
@@ -41,6 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadData() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    final listingProvider = Provider.of<ListingProvider>(context, listen: false);
     final currentUserId = auth.currentUser?.id;
     final targetUserId = widget.userId ?? currentUserId;
     if (targetUserId == null) return;
@@ -50,6 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       targetUserId: targetUserId,
       isOwnProfile: isOwnProfile,
     );
+    await listingProvider.fetchMyListings(targetUserId);
   }
 
   Future<void> _logout() async {
@@ -88,11 +92,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isOwnProfile = widget.userId == null || widget.userId == currentUserId;
 
     final profileProvider = Provider.of<ProfileProvider>(context);
+    final listingProvider = Provider.of<ListingProvider>(context);
     final UserModel? profile = profileProvider.profileFor(widget.userId, currentUserId);
     final isProfileLoading = profileProvider.isLoading && profile == null;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+      backgroundColor: AppColors.bgLight,
       appBar: isOwnProfile
           ? AppBar(
               title: const Text(
@@ -119,39 +124,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: profile?.fullName ?? 'Reader Profile',
               showBack: true,
             ),
-      body: isProfileLoading
-          ? const PageShimmer(itemCount: 3)
-          : profile == null
-              ? _buildErrorState()
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: ProfileHeader(
-                          profile: profile,
-                          isOwnProfile: isOwnProfile,
-                          listingsCount: profileProvider.userPosts.length,
+      body: SwaplyBackground(
+        child: isProfileLoading
+            ? const PageShimmer(itemCount: 3)
+            : profile == null
+                ? _buildErrorState()
+                : RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: ProfileHeader(
+                            profile: profile,
+                            isOwnProfile: isOwnProfile,
+                            listingsCount: listingProvider.myListings.length,
+                          ),
                         ),
-                      ),
-                      ProfilePostsGrid(
-                        posts: profileProvider.userPosts,
-                        isLoading: profileProvider.isLoadingPosts,
-                        isOwnProfile: isOwnProfile,
-                        onAddFirstBook: isOwnProfile
-                            ? () {
-                                final navState =
-                                    context.findAncestorStateOfType<BottomNavScreenState>();
-                                navState?.selectTab(2);
-                              }
-                            : null,
-                      ),
-                    ],
+                        ProfilePostsGrid(
+                          listings: listingProvider.myListings,
+                          isLoading: listingProvider.isLoading,
+                          isOwnProfile: isOwnProfile,
+                          onAddFirstItem: isOwnProfile
+                              ? () {
+                                  final navState =
+                                      context.findAncestorStateOfType<BottomNavScreenState>();
+                                  navState?.selectTab(2);
+                                }
+                              : null,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+      ),
     );
   }
 

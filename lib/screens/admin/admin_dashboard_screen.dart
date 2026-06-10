@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/enums/user_role.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/utils/permission_helper.dart';
@@ -190,7 +191,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFF2D1B2E),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: NestedScrollView(
@@ -231,7 +232,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return SliverAppBar(
       expandedHeight: 140,
       pinned: true,
-      backgroundColor: const Color(0xFF0A0A0F),
+              backgroundColor: const Color(0xFF2D1B2E),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
         onPressed: () => Navigator.of(context).pushReplacementNamed(AppRoutes.bottomNav),
@@ -242,7 +243,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF1A0533), Color(0xFF0A0A0F)],
+              colors: [Color(0xFF3D0F22), Color(0xFF6B1B3E), Color(0xFF2D1B2E)],
             ),
           ),
           child: SafeArea(
@@ -259,10 +260,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [
-                            Color(0xFF7C3AED),
-                            Color(0xFFEC4899),
-                          ]),
+                          gradient: AppColors.primaryGradient,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Row(
@@ -307,10 +305,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Widget _buildTabBar() {
     return Container(
-      color: const Color(0xFF0A0A0F),
+      color: const Color(0xFF2D1B2E),
       child: TabBar(
         controller: _tabController,
-        indicatorColor: const Color(0xFF7C3AED),
+        indicatorColor: AppColors.primaryLight,
         indicatorWeight: 2,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white38,

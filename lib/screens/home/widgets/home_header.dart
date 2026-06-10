@@ -36,14 +36,14 @@ class _HomeHeaderState extends State<HomeHeader>
     });
     _bellController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 300),
     );
-    _bellAnimation = Tween<double>(begin: -0.05, end: 0.05).animate(
+    _bellAnimation = Tween<double>(begin: -0.04, end: 0.04).animate(
       CurvedAnimation(parent: _bellController, curve: Curves.elasticIn),
     );
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) _bellController.repeat(reverse: true);
-      Future.delayed(const Duration(seconds: 1), () {
+      Future.delayed(const Duration(milliseconds: 900), () {
         if (mounted) _bellController.stop();
       });
     });
@@ -56,24 +56,31 @@ class _HomeHeaderState extends State<HomeHeader>
     super.dispose();
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning ☀️';
+    if (hour < 17) return 'Good afternoon 👋';
+    return 'Good evening 🌙';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUser;
-    final firstName = (user?.fullName ?? 'Reader').split(' ').first;
+    final firstName = (user?.fullName ?? 'Friend').split(' ').first;
     final greeting = _getGreeting();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSizes.s20, AppSizes.s20, AppSizes.s20, AppSizes.s12),
+          AppSizes.s20, AppSizes.s20, AppSizes.s20, AppSizes.s8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // ── Greeting Row ───────────────────────────────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Avatar
               GestureDetector(
                 onTap: () {
                   final nav = context
@@ -83,24 +90,22 @@ class _HomeHeaderState extends State<HomeHeader>
                 child: Hero(
                   tag: 'user_avatar',
                   child: Container(
-                    width: 48,
-                    height: 48,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: user?.avatarUrl == null
                           ? AppColors.primaryGradient
                           : null,
                       border: Border.all(
-                        color: theme.colorScheme.primary
-                            .withValues(alpha: 0.25),
+                        color: AppColors.primary.withValues(alpha: 0.25),
                         width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: theme.colorScheme.primary
-                              .withValues(alpha: 0.15),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                          color: AppColors.primary.withValues(alpha: 0.18),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
@@ -110,14 +115,17 @@ class _HomeHeaderState extends State<HomeHeader>
                               user!.avatarUrl!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) =>
-                                  _avatarFallback(firstName, theme),
+                                  _avatarFallback(firstName),
                             )
-                          : _avatarFallback(firstName, theme),
+                          : _avatarFallback(firstName),
                     ),
                   ),
                 ),
               ),
+
               const SizedBox(width: AppSizes.s14),
+
+              // Greeting text
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,17 +135,17 @@ class _HomeHeaderState extends State<HomeHeader>
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: isDark ? Colors.white54 : AppColors.textMuted,
+                        color: AppColors.textMuted,
                       ),
                     ),
-                    const SizedBox(height: AppSizes.s2),
+                    const SizedBox(height: 2),
                     Text(
-                      'Hey, $firstName',
+                      'Hello, $firstName 😊',
                       style: GoogleFonts.poppins(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
+                        letterSpacing: -0.4,
+                        color: AppColors.textPrimary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -145,43 +153,39 @@ class _HomeHeaderState extends State<HomeHeader>
                   ],
                 ),
               ),
+
+              // Notification bell
               RotationTransition(
                 turns: _bellAnimation,
-                child: _NotificationBell(isDark: isDark, theme: theme),
+                child: _NotificationBell(),
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.s20),
+
+          const SizedBox(height: AppSizes.s16),
+
+          // ── Search Bar ─────────────────────────────────────────────────
           ClipRRect(
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
                 decoration: BoxDecoration(
-                  color: (isDark
-                          ? theme.colorScheme.surface
-                          : Colors.white)
-                      .withValues(alpha: 0.9),
-                  borderRadius:
-                      BorderRadius.circular(AppSizes.radiusMd),
+                  color: Colors.white.withValues(alpha: _isFocused ? 0.95 : 0.88),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                   border: Border.all(
                     color: _isFocused
-                        ? theme.colorScheme.primary
-                            .withValues(alpha: 0.5)
-                        : (isDark
-                            ? Colors.white.withValues(alpha: 0.07)
-                            : AppColors.border),
+                        ? AppColors.primary.withValues(alpha: 0.50)
+                        : AppColors.border.withValues(alpha: 0.70),
                     width: _isFocused ? 1.5 : 1,
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: _isFocused
-                          ? theme.colorScheme.primary
-                              .withValues(alpha: 0.10)
-                          : (isDark
-                              ? Colors.black.withValues(alpha: 0.15)
-                              : Colors.black.withValues(alpha: 0.03)),
-                      blurRadius: _isFocused ? 20 : 8,
+                          ? AppColors.primary.withValues(alpha: 0.12)
+                          : AppColors.primary.withValues(alpha: 0.04),
+                      blurRadius: _isFocused ? 20 : 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
@@ -195,36 +199,25 @@ class _HomeHeaderState extends State<HomeHeader>
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textPrimaryDark
-                              : AppColors.textPrimary,
+                          color: AppColors.textPrimary,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Search books, authors...',
+                          hintText: 'Find anything you need...',
                           hintStyle: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
-                            color: isDark
-                                ? Colors.white38
-                                : AppColors.textMuted,
+                            color: AppColors.textMuted,
                           ),
-                          prefixIcon: AnimatedContainer(
-                            duration:
-                                const Duration(milliseconds: 200),
-                            child: Icon(
-                              Icons.search_rounded,
-                              color: _isFocused
-                                  ? theme.colorScheme.primary
-                                  : (isDark
-                                      ? Colors.white38
-                                      : AppColors.textMuted),
-                              size: AppSizes.iconMd,
-                            ),
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            color: _isFocused
+                                ? AppColors.primary
+                                : AppColors.textMuted,
+                            size: AppSizes.iconMd,
                           ),
                           filled: false,
-                          contentPadding:
-                              const EdgeInsets.symmetric(
-                            horizontal: AppSizes.s20,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSizes.s16,
                             vertical: AppSizes.s16,
                           ),
                           border: InputBorder.none,
@@ -233,24 +226,23 @@ class _HomeHeaderState extends State<HomeHeader>
                         ),
                       ),
                     ),
+
+                    // Filter button
                     GestureDetector(
                       onTap: widget.onFilterPressed,
                       child: Container(
                         width: 52,
                         height: 52,
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary
-                              .withValues(alpha: 0.08),
+                          gradient: AppColors.primaryGradient,
                           borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(
-                                AppSizes.radiusMd),
-                            bottomRight: Radius.circular(
-                                AppSizes.radiusMd),
+                            topRight: Radius.circular(AppSizes.radiusMd),
+                            bottomRight: Radius.circular(AppSizes.radiusMd),
                           ),
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.tune_rounded,
-                          color: theme.colorScheme.primary,
+                          color: Colors.white,
                           size: AppSizes.iconMd,
                         ),
                       ),
@@ -265,35 +257,27 @@ class _HomeHeaderState extends State<HomeHeader>
     );
   }
 
-  Widget _avatarFallback(String name, ThemeData theme) {
+  Widget _avatarFallback(String name) {
     return Container(
-      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+      decoration: const BoxDecoration(
+        gradient: AppColors.primaryGradient,
+      ),
       child: Center(
         child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : 'R',
+          name.isNotEmpty ? name[0].toUpperCase() : 'S',
           style: GoogleFonts.poppins(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
+            color: Colors.white,
           ),
         ),
       ),
     );
   }
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
 }
 
 class _NotificationBell extends StatelessWidget {
-  final bool isDark;
-  final ThemeData theme;
-
-  const _NotificationBell({required this.isDark, required this.theme});
+  const _NotificationBell();
 
   @override
   Widget build(BuildContext context) {
@@ -310,30 +294,17 @@ class _NotificationBell extends StatelessWidget {
         width: 46,
         height: 46,
         decoration: BoxDecoration(
-          color: (isDark ? theme.colorScheme.surface : Colors.white)
-              .withValues(alpha: 0.9),
+          color: Colors.white.withValues(alpha: 0.90),
           borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.07)
-                : AppColors.border,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: AppColors.border),
+          boxShadow: AppColors.softShadow,
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.notifications_outlined,
-              color: isDark ? Colors.white70 : AppColors.textSecondary,
+              color: AppColors.textSecondary,
               size: AppSizes.iconMd,
             ),
             Positioned(
@@ -345,12 +316,7 @@ class _NotificationBell extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.error,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isDark
-                        ? theme.colorScheme.surface
-                        : Colors.white,
-                    width: 1.5,
-                  ),
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
               ),
             ),

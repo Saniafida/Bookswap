@@ -3,15 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
-/// Handles all Supabase Storage interactions for BookSwap.
+/// Handles all Supabase Storage interactions for Swaply.
 class StorageService {
   StorageService._();
 
-  static const String _bucket = 'book_covers';
+  static const String _bucket = 'listing_images';
 
   // ── Upload ────────────────────────────────────────────────────────────────
 
-  /// Uploads a single image [bytes] to [filePath] in the book_covers bucket.
+  /// Uploads a single image [bytes] to [filePath] in the listing_images bucket.
   /// Returns the public URL on success, or throws on failure.
   static Future<String> uploadImage(
     Uint8List bytes,

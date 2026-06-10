@@ -10,13 +10,13 @@ class AdminStatsRepository {
 
     final results = await Future.wait([
       SupabaseService.table('profiles').select('id').count(),
-      SupabaseService.table('posts').select('id').count(),
+      SupabaseService.table('listings').select('id').count(),
       SupabaseService.table('chats').select('id').count(),
-      SupabaseService.table('posts').select('id').eq('listing_type', 'donate').count(),
-      SupabaseService.table('posts').select('id').eq('listing_type', 'swap').count(),
-      SupabaseService.table('posts').select('id').eq('listing_type', 'sell').count(),
+      SupabaseService.table('listings').select('id').eq('listing_type', 'donate').count(),
+      SupabaseService.table('listings').select('id').eq('listing_type', 'exchange').count(),
+      SupabaseService.table('listings').select('id').eq('listing_type', 'sell').count(),
       SupabaseService.table('profiles').select('id').gte('created_at', todayStart).count(),
-      SupabaseService.table('posts').select('id').gte('created_at', todayStart).count(),
+      SupabaseService.table('listings').select('id').gte('created_at', todayStart).count(),
       SupabaseService.table('reports').select('id').eq('status', 'pending').count(),
       SupabaseService.table('announcements').select('id').eq('is_active', true).count(),
     ]);
@@ -45,9 +45,9 @@ class AdminStatsRepository {
     }
   }
 
-  /// Returns post counts grouped by listing_type.
+  /// Returns listing counts grouped by listing_type.
   Future<Map<String, int>> fetchBookStats() async {
-    final data = await SupabaseService.table('posts')
+    final data = await SupabaseService.table('listings')
         .select('listing_type')
         .order('listing_type');
     final map = <String, int>{};
@@ -58,14 +58,13 @@ class AdminStatsRepository {
     return map;
   }
 
-  /// Returns post counts grouped by category.
+  /// Returns listing counts grouped by category.
   Future<Map<String, int>> fetchCategoryStats() async {
-    final data = await SupabaseService.table('posts')
-        .select('category')
-        .not('category', 'is', null);
+    final data = await SupabaseService.table('listings')
+        .select('category_id');
     final map = <String, int>{};
     for (final row in data as List) {
-      final c = row['category'] as String? ?? 'Unknown';
+      final c = row['category_id'] as String? ?? 'Uncategorized';
       map[c] = (map[c] ?? 0) + 1;
     }
     return map;

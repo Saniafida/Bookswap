@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
+import '../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../widgets/premium_loading.dart';
+import '../../widgets/swaply_background.dart';
 import 'widgets/search_bar_widget.dart';
 import 'widgets/search_book_card.dart';
 import 'widgets/search_empty_state.dart';
@@ -35,7 +37,7 @@ class _SearchScreenState extends State<SearchScreen> {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       final search = Provider.of<SearchProvider>(context, listen: false);
       search.initialize(currentUserId: auth.currentUser?.id);
-      search.subscribeToPosts();
+      search.subscribeToListings();
       final cp = Provider.of<CategoryProvider>(context, listen: false);
       if (cp.status == CategoryStatus.initial) {
         cp.fetchCategories();
@@ -68,29 +70,30 @@ class _SearchScreenState extends State<SearchScreen> {
     _syncControllerFromProvider(search);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(isDark, search),
-            _buildTabSwitcher(isDark, search),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              child: search.activeTab == SearchTab.books
-                  ? const Column(
-                      children: [
-                        SizedBox(height: 12),
-                        SearchFilterChips(),
-                        SizedBox(height: 8),
-                      ],
-                    )
-                  : const SizedBox(height: 12),
-            ),
-            _buildResultsBar(isDark, search),
-            Expanded(child: _buildResults(isDark, search)),
-          ],
+      body: SwaplyBackground(
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(isDark, search),
+              _buildTabSwitcher(isDark, search),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                child: search.activeTab == SearchTab.items
+                    ? const Column(
+                        children: [
+                          SizedBox(height: 12),
+                          SearchFilterChips(),
+                          SizedBox(height: 8),
+                        ],
+                      )
+                    : const SizedBox(height: 12),
+              ),
+              _buildResultsBar(isDark, search),
+              Expanded(child: _buildResults(isDark, search)),
+            ],
+          ),
         ),
       ),
     );
@@ -112,7 +115,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       shaderCallback: (bounds) =>
                           AppColors.primaryGradient.createShader(bounds),
                       child: Text(
-                        'Discover',
+                        AppStrings.discover,
                         style: GoogleFonts.poppins(
                           fontSize: 28,
                           fontWeight: FontWeight.w700,
@@ -124,9 +127,9 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      search.activeTab == SearchTab.books
-                          ? 'Find your next read'
-                          : 'Connect with readers',
+                      search.activeTab == SearchTab.items
+                          ? AppStrings.findItems
+                          : AppStrings.connectPeople,
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         fontWeight: FontWeight.w400,
@@ -150,9 +153,9 @@ class _SearchScreenState extends State<SearchScreen> {
           SearchBarWidget(
             controller: _searchController,
             focusNode: _focusNode,
-            hintText: search.activeTab == SearchTab.books
-                ? 'Search books, authors...'
-                : 'Search readers by name...',
+            hintText: search.activeTab == SearchTab.items
+                ? AppStrings.searchHint
+                : AppStrings.searchUsersHint,
             onChanged: search.updateQuery,
             onClear: () {
               _searchController.clear();
@@ -174,27 +177,23 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.bgCardDark.withValues(alpha: 0.7)
-                  : Colors.white.withValues(alpha: 0.85),
+              color: Colors.white.withValues(alpha: 0.88),
               borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : AppColors.border.withValues(alpha: 0.4),
-                width: 0.5,
+                color: AppColors.border.withValues(alpha: 0.6),
+                width: 1,
               ),
             ),
             child: Row(
               children: [
                 _TabButton(
-                  label: 'Books',
-                  icon: Icons.menu_book_rounded,
-                  isSelected: search.activeTab == SearchTab.books,
-                  onTap: () => search.setActiveTab(SearchTab.books),
+                  label: AppStrings.searchItemsTab,
+                  icon: Icons.shopping_bag_rounded,
+                  isSelected: search.activeTab == SearchTab.items,
+                  onTap: () => search.setActiveTab(SearchTab.items),
                 ),
                 _TabButton(
-                  label: 'Readers',
+                  label: AppStrings.searchUsersTab,
                   icon: Icons.people_rounded,
                   isSelected: search.activeTab == SearchTab.users,
                   onTap: () => search.setActiveTab(SearchTab.users),
@@ -215,20 +214,23 @@ class _SearchScreenState extends State<SearchScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            '${search.resultCount} result${search.resultCount == 1 ? '' : 's'}',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textMuted,
+          Flexible(
+            child: Text(
+              '${search.resultCount} result${search.resultCount == 1 ? '' : 's'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textMuted,
+              ),
             ),
           ),
           if (search.hasActiveFilters &&
-              search.activeTab == SearchTab.books)
+              search.activeTab == SearchTab.items)
             GestureDetector(
               onTap: search.clearFilters,
               child: Container(
@@ -242,7 +244,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       BorderRadius.circular(AppSizes.radiusFull),
                 ),
                 child: Text(
-                  'Clear filters',
+                  AppStrings.clearFilters,
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -261,10 +263,10 @@ class _SearchScreenState extends State<SearchScreen> {
       return const PageShimmer(itemCount: 4);
     }
 
-    if (search.activeTab == SearchTab.books) {
-      if (search.bookResults.isEmpty) {
+    if (search.activeTab == SearchTab.items) {
+      if (search.listingResults.isEmpty) {
         return SearchEmptyState(
-          tab: SearchTab.books,
+          tab: SearchTab.items,
           hasQuery: search.query.trim().isNotEmpty,
           hasFilters: search.hasActiveFilters,
           onClearFilters: search.clearFilters,
@@ -289,9 +291,9 @@ class _SearchScreenState extends State<SearchScreen> {
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: search.bookResults.length,
+          itemCount: search.listingResults.length,
           itemBuilder: (_, index) =>
-              SearchBookCard(post: search.bookResults[index]),
+              SearchBookCard(listing: search.listingResults[index]),
         ),
       );
     }

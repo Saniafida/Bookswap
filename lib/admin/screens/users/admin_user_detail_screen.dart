@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/admin_user_provider.dart';
-import 'package:bookswap/core/enums/user_role.dart';
-import 'package:bookswap/models/post_model.dart';
-import 'package:bookswap/models/user_model.dart';
+import '../../../data/models/listing_model.dart';
 import '../../widgets/admin_confirm_dialog.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
@@ -49,7 +47,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
       context: context,
       builder: (context) => AdminConfirmDialog(
         title: isBanning ? 'Ban User' : 'Unban User',
-        content: isBanning ? 'Are you sure you want to ban $name? They will lose access to all BookSwap services.' : 'Are you sure you want to unban $name?',
+        content: isBanning ? 'Are you sure you want to ban $name? They will lose access to all Swaply services.' : 'Are you sure you want to unban $name?',
         confirmLabel: isBanning ? 'Ban' : 'Unban',
         isDangerous: isBanning,
       ),
@@ -85,7 +83,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
           if (user == null) {
             return Center(child: Text('User details not found', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary)));
           }
-          final posts = provider.selectedUserPosts;
+          final listings = provider.selectedUserListings;
 
           return SingleChildScrollView(
             padding: AppSizes.pagePadding,
@@ -102,11 +100,11 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSizes.s16),
-                if (posts.isEmpty)
+                if (listings.isEmpty)
                   Center(child: Padding(padding: const EdgeInsets.symmetric(vertical: AppSizes.s32), child: Column(children: [
-                    Icon(Icons.menu_book_rounded, size: 48, color: isDark ? AppColors.textMutedDark : AppColors.textMuted),
+                    Icon(Icons.inventory_2_rounded, size: 48, color: isDark ? AppColors.textMutedDark : AppColors.textMuted),
                     const SizedBox(height: AppSizes.s16),
-                    Text('No books listed by this user.', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted)),
+                    Text('No listings posted by this user.', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted)),
                   ])))
                 else
                   LayoutBuilder(
@@ -116,8 +114,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount, crossAxisSpacing: AppSizes.s16, mainAxisSpacing: AppSizes.s16, childAspectRatio: crossAxisCount > 1 ? 0.72 : 1.2),
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) => _buildBookGridItem(posts[index], isDark),
+                        itemCount: listings.length,
+                        itemBuilder: (context, index) => _buildListingGridItem(listings[index], isDark),
                       );
                     },
                   ),
@@ -129,7 +127,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
   }
 
-  Widget _buildProfileCard(UserModel user, bool isDark) {
+  Widget _buildProfileCard(dynamic user, bool isDark) {
+    // user is UserModel
     return GlassCard(
       padding: AppSizes.cardPadding,
       child: Column(
@@ -224,7 +223,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
   }
 
-  Widget _buildBookGridItem(PostModel post, bool isDark) {
+  Widget _buildListingGridItem(ListingModel listing, bool isDark) {
+    final thumbnailUrl = listing.images.isNotEmpty ? listing.images.first.url : null;
     return GlassCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -234,9 +234,9 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
             child: Container(
               width: double.infinity,
               color: isDark ? AppColors.bgSurfaceDark : AppColors.bgSurface,
-              child: post.imageUrl != null
-                  ? Image.network(post.imageUrl!, fit: BoxFit.cover)
-                  : Center(child: Icon(Icons.book_rounded, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, size: 36)),
+              child: thumbnailUrl != null
+                  ? Image.network(thumbnailUrl, fit: BoxFit.cover)
+                  : Center(child: Icon(Icons.inventory_2_rounded, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, size: 36)),
             ),
           ),
           Padding(
@@ -244,9 +244,9 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(post.title, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(listing.title, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: AppSizes.s2),
-                Text('by ${post.author}', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(listing.listingTypeLabel, style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: AppSizes.s8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -254,10 +254,10 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: AppSizes.s6, vertical: AppSizes.s2),
                       decoration: BoxDecoration(color: AppColors.primaryLight.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(AppSizes.radiusXs)),
-                      child: Text(post.listingType.name.toUpperCase(), style: GoogleFonts.poppins(color: AppColors.primary, fontSize: 8, fontWeight: FontWeight.w700)),
+                      child: Text(listing.listingTypeLabel.toUpperCase(), style: GoogleFonts.poppins(color: AppColors.primary, fontSize: 8, fontWeight: FontWeight.w700)),
                     ),
-                    if (post.price != null && post.price! > 0)
-                      Text('\$${post.price!.toStringAsFixed(2)}', style: GoogleFonts.poppins(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
+                    if (listing.price != null && listing.price! > 0)
+                      Text('\$${listing.price!.toStringAsFixed(2)}', style: GoogleFonts.poppins(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ],

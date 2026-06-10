@@ -8,11 +8,8 @@ import '../../providers/admin_user_provider.dart';
 import '../../providers/admin_book_provider.dart';
 import '../../providers/admin_report_provider.dart';
 import '../../widgets/admin_stat_card.dart';
-import '../../widgets/admin_section_header.dart';
-import '../../../providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
-import '../../../core/routes/app_routes.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/premium_loading.dart';
 
@@ -30,7 +27,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminStatsProvider>().fetchAll();
       context.read<AdminUserProvider>().fetchUsers(refresh: true);
-      context.read<AdminBookProvider>().fetchBooks(refresh: true);
+      context.read<AdminBookProvider>().fetchListings(refresh: true);
       context.read<AdminReportProvider>().fetchReports();
     });
   }
@@ -39,7 +36,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final statsProvider = context.watch<AdminStatsProvider>();
     final userProvider = context.watch<AdminUserProvider>();
-    final bookProvider = context.watch<AdminBookProvider>();
+    final listingProvider = context.watch<AdminBookProvider>();
     final reportProvider = context.watch<AdminReportProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -57,7 +54,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         onRefresh: () async {
           await statsProvider.fetchAll();
           await userProvider.fetchUsers(refresh: true);
-          await bookProvider.fetchBooks(refresh: true);
+          await listingProvider.fetchListings(refresh: true);
           await reportProvider.fetchReports();
         },
         color: AppColors.primary,
@@ -80,7 +77,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildRecentActivity(userProvider, bookProvider, reportProvider, isDark),
+                        _buildRecentActivity(userProvider, listingProvider, reportProvider, isDark),
                         const SizedBox(height: AppSizes.s24),
                         _buildQuickActionsCard(isDark),
                       ],
@@ -89,7 +86,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 2, child: _buildRecentActivity(userProvider, bookProvider, reportProvider, isDark)),
+                        Expanded(flex: 2, child: _buildRecentActivity(userProvider, listingProvider, reportProvider, isDark)),
                         const SizedBox(width: AppSizes.s24),
                         Expanded(child: _buildQuickActionsCard(isDark)),
                       ],
@@ -114,7 +111,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Text('Overview Dashboard', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               const SizedBox(height: AppSizes.s4),
-              Text('Real-time metrics, analytics, and activities for BookSwap.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w400)),
+              Text('Real-time metrics, analytics, and activities for Swaply.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w400)),
             ],
           ),
         ),
@@ -152,9 +149,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             AdminStatCard(title: 'Total Users', value: stats.totalUsers.toString(), icon: Icons.people_alt_rounded, iconColor: AppColors.primary, trend: '+14% this month', isPositive: true),
-            AdminStatCard(title: 'Total Books Listed', value: stats.totalBooks.toString(), icon: Icons.menu_book_rounded, iconColor: AppColors.secondary, trend: '+8% this week', isPositive: true),
-            AdminStatCard(title: 'Book Donations', value: stats.totalDonations.toString(), icon: Icons.volunteer_activism_rounded, iconColor: AppColors.success, trend: '+22% growth', isPositive: true),
-            AdminStatCard(title: 'Book Exchanges', value: stats.totalExchanges.toString(), icon: Icons.sync_alt_rounded, iconColor: const Color(0xFF8B5CF6), trend: '+16% success', isPositive: true),
+            AdminStatCard(title: 'Total Listings', value: stats.totalBooks.toString(), icon: Icons.inventory_2_rounded, iconColor: AppColors.secondary, trend: '+8% this week', isPositive: true),
+            AdminStatCard(title: 'Active Donations', value: stats.totalDonations.toString(), icon: Icons.volunteer_activism_rounded, iconColor: AppColors.success, trend: '+22% growth', isPositive: true),
+            AdminStatCard(title: 'Completed Exchanges', value: stats.totalExchanges.toString(), icon: Icons.sync_alt_rounded, iconColor: const Color(0xFF8B5CF6), trend: '+16% success', isPositive: true),
           ],
         );
       },
@@ -175,7 +172,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   Text('User Growth & Listings Activity', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: AppSizes.s2),
-                  Text('Monthly chart mapping signup rate and active book uploads.', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 12)),
+                  Text('Monthly chart mapping signup rate and active listing uploads.', style: GoogleFonts.poppins(color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontSize: 12)),
                 ],
               ),
               Container(
@@ -255,10 +252,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildRecentActivity(AdminUserProvider up, AdminBookProvider bp, AdminReportProvider rp, bool isDark) {
     final List<_ActivityItem> activities = [];
     for (final user in up.users.take(3)) {
-      activities.add(_ActivityItem(icon: Icons.person_add_rounded, color: AppColors.primary, title: 'New User Registered', subtitle: '${user.fullName} (${user.email}) signed up to BookSwap.', time: _formatDate(user.createdAt), timestamp: user.createdAt));
+      activities.add(_ActivityItem(icon: Icons.person_add_rounded, color: AppColors.primary, title: 'New User Registered', subtitle: '${user.fullName} (${user.email}) signed up to Swaply.', time: _formatDate(user.createdAt), timestamp: user.createdAt));
     }
-    for (final book in bp.books.take(3)) {
-      activities.add(_ActivityItem(icon: Icons.menu_book_rounded, color: AppColors.secondary, title: 'Book Listed for exchange', subtitle: '"${book.title}" was listed by ${book.ownerName ?? 'a user'}.', time: _formatDate(book.createdAt), timestamp: book.createdAt));
+    for (final listing in bp.listings.take(3)) {
+      activities.add(_ActivityItem(icon: Icons.inventory_2_rounded, color: AppColors.secondary, title: 'New Listing Posted', subtitle: '"${listing.title}" was listed by ${listing.ownerName ?? 'a user'}.', time: _formatDate(listing.createdAt), timestamp: listing.createdAt));
     }
     activities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
@@ -319,7 +316,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Container(width: 6, height: 20, decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(3))),
               const SizedBox(width: AppSizes.s10),
-              Text('Quick Tasks', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+              Flexible(child: Text('Quick Tasks', maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700))),
             ],
           ),
           const SizedBox(height: AppSizes.s20),
@@ -328,11 +325,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           }),
           const SizedBox(height: AppSizes.s12),
           _buildQuickAction('Review Content Reports', Icons.flag_rounded, AppColors.error, () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Click Flag on the sidebar to inspect reported posts/accounts.')));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Click Flag on the sidebar to inspect reported listings/accounts.')));
           }),
           const SizedBox(height: AppSizes.s12),
           _buildQuickAction('Add New Category', Icons.category_rounded, AppColors.success, () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Click Category on the sidebar to build dynamic book folders.')));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Click Category on the sidebar to build dynamic listing categories.')));
           }),
         ],
       ),

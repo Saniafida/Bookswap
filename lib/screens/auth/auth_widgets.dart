@@ -50,7 +50,7 @@ class AuthGradientLogo extends StatelessWidget {
           shaderCallback: (bounds) =>
               AppColors.primaryGradient.createShader(bounds),
           child: Text(
-            'BookSwap',
+            'Swaply',
             style: GoogleFonts.poppins(
               fontSize: fontSize,
               fontWeight: FontWeight.w800,

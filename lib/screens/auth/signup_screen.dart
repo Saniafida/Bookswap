@@ -11,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/premium_button.dart';
 import '../../widgets/premium_textfield.dart';
+import '../../widgets/swaply_background.dart';
 import 'auth_widgets.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -103,144 +104,145 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: AppColors.bgLight,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: AppSizes.pagePaddingLarge,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: AppSizes.cardMaxWidth),
-                child: Form(
-                  key: _formKey,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 700),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, child) {
-                      return Opacity(
-                        opacity: value,
-                        child: Transform.translate(
-                          offset: Offset(0, 30 * (1 - value)),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Column(
-                      children: [
-                        const AuthBackButton(),
-                        SizedBox(height: AppSizes.s24),
-                        const AuthGradientLogo(
-                          fontSize: 32,
-                          subtitle: 'Join thousands of book lovers.',
-                        ),
-                        SizedBox(height: AppSizes.s28),
-                        GlassCard(
-                          padding: const EdgeInsets.all(AppSizes.s24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+        body: SwaplyBackground(
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: AppSizes.pagePaddingLarge,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: AppSizes.cardMaxWidth),
+                  child: Form(
+                    key: _formKey,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(0, 30 * (1 - value)),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Column(
+                        children: [
+                          const AuthBackButton(),
+                          SizedBox(height: AppSizes.s24),
+                          const AuthGradientLogo(
+                            fontSize: 32,
+                            subtitle: 'Join thousands of book lovers.',
+                          ),
+                          SizedBox(height: AppSizes.s28),
+                          GlassCard(
+                            padding: const EdgeInsets.all(AppSizes.s24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                AuthTitle(text: 'Create Account'),
+                                SizedBox(height: AppSizes.s4),
+                                AuthSubtitle(
+                                  text: 'Fill in your details to get started.',
+                                ),
+                                SizedBox(height: AppSizes.s24),
+                                PremiumTextField(
+                                  label: AppStrings.fullName,
+                                  hint: AppStrings.fullName,
+                                  controller: _nameCtrl,
+                                  prefixIcon: Icon(
+                                    Icons.person_outline_rounded,
+                                    size: AppSizes.iconSm,
+                                  ),
+                                  validator: AppUtils.validateRequired,
+                                ),
+                                SizedBox(height: AppSizes.s16),
+                                PremiumTextField(
+                                  label: AppStrings.email,
+                                  hint: AppStrings.email,
+                                  controller: _emailCtrl,
+                                  keyboardType: TextInputType.emailAddress,
+                                  prefixIcon: Icon(
+                                    Icons.email_outlined,
+                                    size: AppSizes.iconSm,
+                                  ),
+                                  validator: AppUtils.validateEmail,
+                                ),
+                                SizedBox(height: AppSizes.s16),
+                                PremiumTextField(
+                                  label: AppStrings.password,
+                                  hint: AppStrings.password,
+                                  controller: _passwordCtrl,
+                                  obscureText: true,
+                                  prefixIcon: Icon(
+                                    Icons.lock_outline_rounded,
+                                    size: AppSizes.iconSm,
+                                  ),
+                                  validator: AppUtils.validatePassword,
+                                ),
+                                SizedBox(height: AppSizes.s16),
+                                PremiumTextField(
+                                  label: AppStrings.confirmPassword,
+                                  hint: AppStrings.confirmPassword,
+                                  controller: _confirmCtrl,
+                                  obscureText: true,
+                                  prefixIcon: Icon(
+                                    Icons.lock_outline_rounded,
+                                    size: AppSizes.iconSm,
+                                  ),
+                                  validator: AppUtils.validateRequired,
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) => _register(),
+                                ),
+                                SizedBox(height: AppSizes.s24),
+                                PremiumButton(
+                                  label: AppStrings.signUp,
+                                  onPressed: _register,
+                                  isLoading: auth.isLoading,
+                                  style: PremiumButtonStyle.primary,
+                                ),
+                                SizedBox(height: AppSizes.s16),
+                                const AuthAgreementText(),
+                                SizedBox(height: AppSizes.s20),
+                                _buildOrDivider(),
+                                SizedBox(height: AppSizes.s20),
+                                PremiumButton(
+                                  label: 'Continue with Google',
+                                  icon: const GoogleIcon(),
+                                  onPressed: _googleSignIn,
+                                  isLoading: auth.isLoading,
+                                  style: PremiumButtonStyle.secondary,
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: AppSizes.s24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              AuthTitle(text: 'Create Account'),
-                              SizedBox(height: AppSizes.s4),
-                              AuthSubtitle(
-                                text: 'Fill in your details to get started.',
-                              ),
-                              SizedBox(height: AppSizes.s24),
-                              PremiumTextField(
-                                label: AppStrings.fullName,
-                                hint: AppStrings.fullName,
-                                controller: _nameCtrl,
-                                prefixIcon: Icon(
-                                  Icons.person_outline_rounded,
-                                  size: AppSizes.iconSm,
+                              Text(
+                                AppStrings.alreadyHaveAccount,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: AppColors.textSecondary,
                                 ),
-                                validator: AppUtils.validateRequired,
                               ),
-                              SizedBox(height: AppSizes.s16),
-                              PremiumTextField(
-                                label: AppStrings.email,
-                                hint: AppStrings.email,
-                                controller: _emailCtrl,
-                                keyboardType: TextInputType.emailAddress,
-                                prefixIcon: Icon(
-                                  Icons.email_outlined,
-                                  size: AppSizes.iconSm,
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: Text(
+                                  AppStrings.signIn,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
-                                validator: AppUtils.validateEmail,
-                              ),
-                              SizedBox(height: AppSizes.s16),
-                              PremiumTextField(
-                                label: AppStrings.password,
-                                hint: AppStrings.password,
-                                controller: _passwordCtrl,
-                                obscureText: true,
-                                prefixIcon: Icon(
-                                  Icons.lock_outline_rounded,
-                                  size: AppSizes.iconSm,
-                                ),
-                                validator: AppUtils.validatePassword,
-                              ),
-                              SizedBox(height: AppSizes.s16),
-                              PremiumTextField(
-                                label: AppStrings.confirmPassword,
-                                hint: AppStrings.confirmPassword,
-                                controller: _confirmCtrl,
-                                obscureText: true,
-                                prefixIcon: Icon(
-                                  Icons.lock_outline_rounded,
-                                  size: AppSizes.iconSm,
-                                ),
-                                validator: AppUtils.validateRequired,
-                                textInputAction: TextInputAction.done,
-                                onSubmitted: (_) => _register(),
-                              ),
-                              SizedBox(height: AppSizes.s24),
-                              PremiumButton(
-                                label: AppStrings.signUp,
-                                onPressed: _register,
-                                isLoading: auth.isLoading,
-                                style: PremiumButtonStyle.primary,
-                              ),
-                              SizedBox(height: AppSizes.s16),
-                              const AuthAgreementText(),
-                              SizedBox(height: AppSizes.s20),
-                              _buildOrDivider(),
-                              SizedBox(height: AppSizes.s20),
-                              PremiumButton(
-                                label: 'Continue with Google',
-                                icon: const GoogleIcon(),
-                                onPressed: _googleSignIn,
-                                isLoading: auth.isLoading,
-                                style: PremiumButtonStyle.secondary,
                               ),
                             ],
                           ),
-                        ),
-                        SizedBox(height: AppSizes.s24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              AppStrings.alreadyHaveAccount,
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(
-                                AppStrings.signIn,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

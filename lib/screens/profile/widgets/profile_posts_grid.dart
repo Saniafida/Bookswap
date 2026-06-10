@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../models/post_model.dart';
+import '../../../data/models/listing_model.dart';
 import '../../../widgets/premium_button.dart';
 
 class ProfilePostsGrid extends StatelessWidget {
-  final List<PostModel> posts;
+  final List<ListingModel> listings;
   final bool isLoading;
   final bool isOwnProfile;
-  final VoidCallback? onAddFirstBook;
+  final VoidCallback? onAddFirstItem;
 
   const ProfilePostsGrid({
     super.key,
-    required this.posts,
+    required this.listings,
     this.isLoading = false,
     this.isOwnProfile = true,
-    this.onAddFirstBook,
+    this.onAddFirstItem,
   });
 
   @override
@@ -33,7 +34,7 @@ class ProfilePostsGrid extends StatelessWidget {
       );
     }
 
-    if (posts.isEmpty) {
+    if (listings.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
         child: Padding(
@@ -49,7 +50,7 @@ class ProfilePostsGrid extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.menu_book_rounded,
+                  Icons.inventory_2_rounded,
                   size: 32,
                   color: AppColors.primary.withValues(alpha: 0.4),
                 ),
@@ -57,8 +58,8 @@ class ProfilePostsGrid extends StatelessWidget {
               SizedBox(height: AppSizes.s16),
               Text(
                 isOwnProfile
-                    ? 'No books listed yet'
-                    : 'This reader has no books listed.',
+                    ? 'No items listed yet'
+                    : 'This user has no items listed.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Poppins',
@@ -67,13 +68,13 @@ class ProfilePostsGrid extends StatelessWidget {
                   color: isDark ? Colors.white54 : AppColors.textMuted,
                 ),
               ),
-              if (isOwnProfile && onAddFirstBook != null) ...[
+              if (isOwnProfile && onAddFirstItem != null) ...[
                 SizedBox(height: AppSizes.s20),
                 PremiumButton(
-                  label: 'List your first book',
+                  label: 'List your first item',
                   style: PremiumButtonStyle.gradient,
                   icon: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                  onPressed: onAddFirstBook,
+                  onPressed: onAddFirstItem,
                   height: AppSizes.buttonMd,
                   width: 220,
                   borderRadius: AppSizes.radiusMd,
@@ -95,30 +96,43 @@ class ProfilePostsGrid extends StatelessWidget {
           mainAxisSpacing: 12,
         ),
         delegate: SliverChildBuilderDelegate(
-          (context, index) => _ProfilePostCard(post: posts[index]),
-          childCount: posts.length,
+          (context, index) => _ProfileListingCard(listing: listings[index]),
+          childCount: listings.length,
         ),
       ),
     );
   }
 }
 
-class _ProfilePostCard extends StatelessWidget {
-  final PostModel post;
+class _ProfileListingCard extends StatelessWidget {
+  final ListingModel listing;
 
-  const _ProfilePostCard({required this.post});
+  const _ProfileListingCard({required this.listing});
+
+  Color _listingTypeColor(String type) {
+    return switch (type) {
+      'sell' => const Color(0xFF10B981),
+      'exchange' => Colors.blue,
+      'donate' => const Color(0xFFE11D48),
+      'sellExchange' => Colors.purple,
+      'sell_exchange' => Colors.purple,
+      _ => AppColors.primary,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final thumbnail = listing.images.isNotEmpty ? listing.images.first.url : null;
+
     return GestureDetector(
       onTap: () {
         Navigator.pushNamed(
           context,
           AppRoutes.postDetails,
-          arguments: {'postId': post.id},
+          arguments: {'postId': listing.id},
         );
       },
       child: Container(
@@ -147,14 +161,14 @@ class _ProfilePostCard extends StatelessWidget {
                 child: Stack(
                   children: [
                     Positioned.fill(
-                      child: post.imageUrl != null && post.imageUrl!.isNotEmpty
+                      child: thumbnail != null && thumbnail.isNotEmpty
                           ? ClipRRect(
-                              child: Image.network(post.imageUrl!, fit: BoxFit.cover),
+                              child: Image.network(thumbnail, fit: BoxFit.cover),
                             )
                           : Container(
                               color: AppColors.primary.withValues(alpha: 0.06),
                               child: Icon(
-                                Icons.book_rounded,
+                                Icons.inventory_2_rounded,
                                 color: AppColors.primary.withValues(alpha: 0.3),
                                 size: 36,
                               ),
@@ -166,21 +180,37 @@ class _ProfilePostCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _listingTypeColor(post.listingType).withValues(alpha: 0.9),
+                          color: _listingTypeColor(listing.listingType).withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          post.listingType == ListingType.swap
-                              ? 'Swap'
-                              : post.listingType == ListingType.sell
-                                  ? 'Sell'
-                                  : post.listingType == ListingType.donate
-                                      ? 'Donate'
-                                      : 'Both',
-                          style: const TextStyle(
+                          listing.listingTypeLabel,
+                          style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Text(
+                          listing.conditionLabel,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -194,7 +224,7 @@ class _ProfilePostCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      post.title,
+                      listing.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -204,28 +234,11 @@ class _ProfilePostCard extends StatelessWidget {
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: AppSizes.s2),
-                    Text(
-                      'by ${post.author}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 11,
-                        color: isDark ? Colors.white54 : AppColors.textMuted,
-                      ),
-                    ),
                     SizedBox(height: AppSizes.s8),
                     Text(
-                      post.listingType == ListingType.swap
-                          ? 'Swap Only'
-                          : post.listingType == ListingType.donate
-                              ? 'Free (Donation)'
-                              : post.price != null
-                                  ? '\$${post.price!.toStringAsFixed(2)}'
-                                  : 'Free',
+                      listing.priceLabel.isNotEmpty
+                          ? listing.priceLabel
+                          : listing.listingTypeLabel,
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w700,
@@ -241,18 +254,5 @@ class _ProfilePostCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _listingTypeColor(ListingType type) {
-    switch (type) {
-      case ListingType.swap:
-        return Colors.blue;
-      case ListingType.sell:
-        return const Color(0xFF10B981);
-      case ListingType.both:
-        return Colors.purple;
-      case ListingType.donate:
-        return const Color(0xFFE11D48);
-    }
   }
 }

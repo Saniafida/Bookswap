@@ -7,7 +7,7 @@ import '../../core/constants/app_sizes.dart';
 import '../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
-import '../../providers/post_provider.dart';
+import '../../providers/listing_provider.dart';
 import '../../widgets/animated_badge.dart';
 import '../home/home_screen.dart';
 import '../search/search_screen.dart';
@@ -43,9 +43,9 @@ class BottomNavScreenState extends State<BottomNavScreen> {
       _currentIndex = index;
     });
     if (index == 0) {
-      final postProvider =
-          Provider.of<PostProvider>(context, listen: false);
-      postProvider.fetchPosts(silent: true);
+      final listingProvider =
+          Provider.of<ListingProvider>(context, listen: false);
+      listingProvider.fetchListings(refresh: true);
     }
   }
 
@@ -104,8 +104,7 @@ class BottomNavScreenState extends State<BottomNavScreen> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: (isDark ? Colors.black : theme.colorScheme.primary)
-                  .withValues(alpha: isDark ? 0.35 : 0.06),
+              color: AppColors.primary.withValues(alpha: 0.12),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -118,12 +117,10 @@ class BottomNavScreenState extends State<BottomNavScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8),
               decoration: BoxDecoration(
-                color: (isDark ? AppColors.bgCardDark : Colors.white)
-                    .withValues(alpha: 0.85),
+                color: Colors.white.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(AppSizes.radiusXl),
                 border: Border.all(
-                  color: (isDark ? Colors.white : theme.colorScheme.primary)
-                      .withValues(alpha: 0.08),
+                  color: AppColors.border.withValues(alpha: 0.6),
                   width: 1,
                 ),
               ),
@@ -147,7 +144,7 @@ class BottomNavScreenState extends State<BottomNavScreen> {
                             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                             boxShadow: [
                               BoxShadow(
-                                color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                                color: AppColors.primary.withValues(alpha: 0.35),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -394,7 +391,7 @@ class BottomNavScreenState extends State<BottomNavScreen> {
         ],
       ),
       child: const Icon(
-        Icons.menu_book_rounded,
+        Icons.shopping_bag_rounded,
         color: Colors.white,
         size: 24,
       ),

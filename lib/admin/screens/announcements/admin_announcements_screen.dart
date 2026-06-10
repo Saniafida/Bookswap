@@ -11,7 +11,7 @@ import '../../../widgets/glass_card.dart';
 import '../../../widgets/premium_button.dart';
 import '../../../widgets/premium_textfield.dart';
 import '../../../widgets/premium_loading.dart';
-import '../../../widgets/announcement_banner.dart';
+
 
 class AdminAnnouncementsScreen extends StatefulWidget {
   const AdminAnnouncementsScreen({super.key});
@@ -283,10 +283,10 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
     Color bg = isDark ? AppColors.borderDark : AppColors.divider;
     if (val == 1) {
       color = AppColors.warning;
-      bg = AppColors.warningLight;
+      bg = AppColors.warningBg;
     } else if (val == 2) {
       color = AppColors.error;
-      bg = AppColors.errorLight;
+      bg = AppColors.errorBg;
     }
 
     return InkWell(
@@ -341,11 +341,11 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
 
     if (_priority == 1) {
       cardColor = AppColors.warning;
-      tintColor = AppColors.warningLight;
+      tintColor = AppColors.warningBg;
       icon = Icons.warning_amber_rounded;
     } else if (_priority == 2) {
       cardColor = AppColors.error;
-      tintColor = AppColors.errorLight;
+      tintColor = AppColors.errorBg;
       icon = Icons.error_outline_rounded;
     }
 
@@ -470,7 +470,9 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(announcement.title, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                      Flexible(
+                        child: Text(announcement.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                      ),
                       SizedBox(width: AppSizes.s8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: AppSizes.s6, vertical: AppSizes.s2),

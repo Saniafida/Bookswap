@@ -7,15 +7,9 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/utils/permission_helper.dart';
-import '../../widgets/glass_card.dart';
-import '../../widgets/premium_button.dart';
-import '../providers/admin_stats_provider.dart';
 import '../providers/admin_user_provider.dart';
 import '../providers/admin_book_provider.dart';
-import '../providers/admin_category_provider.dart';
-import '../providers/admin_report_provider.dart';
-import '../providers/admin_announcement_provider.dart';
-import '../providers/admin_settings_provider.dart';
+import '../../widgets/premium_button.dart';
 import 'dashboard/admin_dashboard_screen.dart';
 import 'users/admin_users_screen.dart';
 import 'books/admin_books_screen.dart';
@@ -38,7 +32,7 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
   static const List<_NavItem> _items = [
     _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
     _NavItem(icon: Icons.people_alt_rounded, label: 'Users'),
-    _NavItem(icon: Icons.menu_book_rounded, label: 'Books'),
+    _NavItem(icon: Icons.inventory_2_rounded, label: 'Listings'),
     _NavItem(icon: Icons.category_rounded, label: 'Categories'),
     _NavItem(icon: Icons.flag_rounded, label: 'Reports'),
     _NavItem(icon: Icons.campaign_rounded, label: 'Announcements'),
@@ -104,6 +98,12 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
       adminName: auth.currentUser?.fullName ?? 'Admin',
       adminEmail: auth.currentUser?.email ?? '',
       avatarUrl: auth.currentUser?.avatarUrl,
+      onLogout: () async {
+        await auth.signOut();
+        if (context.mounted) {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+        }
+      },
     );
 
     return Scaffold(
@@ -173,7 +173,7 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
         children: [
           _MobileNavItem(icon: Icons.dashboard_rounded, label: 'Home', isSelected: _getBottomNavIndex(_selectedIndex) == 0, onTap: () => _onBottomNavSelect(0)),
           _MobileNavItem(icon: Icons.people_alt_rounded, label: 'Users', isSelected: _getBottomNavIndex(_selectedIndex) == 1, onTap: () => _onBottomNavSelect(1)),
-          _MobileNavItem(icon: Icons.menu_book_rounded, label: 'Books', isSelected: _getBottomNavIndex(_selectedIndex) == 2, onTap: () => _onBottomNavSelect(2)),
+          _MobileNavItem(icon: Icons.inventory_2_rounded, label: 'Listings', isSelected: _getBottomNavIndex(_selectedIndex) == 2, onTap: () => _onBottomNavSelect(2)),
           _MobileNavItem(icon: Icons.category_rounded, label: 'Cats', isSelected: _getBottomNavIndex(_selectedIndex) == 3, onTap: () => _onBottomNavSelect(3)),
           _MobileNavItem(icon: Icons.settings_rounded, label: 'Settings', isSelected: _getBottomNavIndex(_selectedIndex) == 4, onTap: () => _onBottomNavSelect(4)),
         ],
@@ -226,12 +226,15 @@ class _AdminSidebar extends StatelessWidget {
   final String adminEmail;
   final String? avatarUrl;
 
+  final VoidCallback onLogout;
+
   const _AdminSidebar({
     required this.items,
     required this.selectedIndex,
     required this.onSelect,
     required this.adminName,
     required this.adminEmail,
+    required this.onLogout,
     this.avatarUrl,
   });
 
@@ -275,7 +278,7 @@ class _AdminSidebar extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('BookSwap', style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: -0.5)),
+              Text('Swaply', style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: -0.5)),
               Text('Admin Console', style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.secondary, letterSpacing: 1)),
             ],
           ),
@@ -327,7 +330,6 @@ class _AdminSidebar extends StatelessWidget {
   }
 
   Widget _buildSidebarFooter(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(AppSizes.s16),
       child: Column(
@@ -342,6 +344,17 @@ class _AdminSidebar extends StatelessWidget {
               style: PremiumButtonStyle.glass,
               height: AppSizes.buttonMd,
               onPressed: () => Navigator.of(context).pushReplacementNamed(AppRoutes.bottomNav),
+            ),
+          ),
+          const SizedBox(height: AppSizes.s10),
+          SizedBox(
+            width: double.infinity,
+            child: PremiumButton(
+              label: 'Sign Out',
+              icon: const Icon(Icons.logout_rounded, size: 16),
+              style: PremiumButtonStyle.secondary,
+              height: AppSizes.buttonMd,
+              onPressed: onLogout,
             ),
           ),
         ],
@@ -420,7 +433,7 @@ class _AdminHeader extends StatelessWidget {
 
     String hint = 'Search...';
     if (selectedIndex == 1) hint = 'Search users by name/email...';
-    if (selectedIndex == 2) hint = 'Search books by title/author...';
+    if (selectedIndex == 2) hint = 'Search listings by title...';
 
     return Container(
       decoration: BoxDecoration(
@@ -474,7 +487,7 @@ class _AdminHeader extends StatelessWidget {
       itemBuilder: (context) => [
         const PopupMenuItem(value: 1, child: Row(children: [Icon(Icons.category_rounded, size: 16, color: AppColors.textSecondary), SizedBox(width: 8), Text('Add Category', style: TextStyle(fontFamily: 'Poppins'))])),
         const PopupMenuItem(value: 2, child: Row(children: [Icon(Icons.campaign_rounded, size: 16, color: AppColors.textSecondary), SizedBox(width: 8), Text('Create Announcement', style: TextStyle(fontFamily: 'Poppins'))])),
-        const PopupMenuItem(value: 3, child: Row(children: [Icon(Icons.menu_book_rounded, size: 16, color: AppColors.textSecondary), SizedBox(width: 8), Text('Manage Books', style: TextStyle(fontFamily: 'Poppins'))])),
+        const PopupMenuItem(value: 3, child: Row(children: [Icon(Icons.inventory_2_rounded, size: 16, color: AppColors.textSecondary), SizedBox(width: 8), Text('Manage Listings', style: TextStyle(fontFamily: 'Poppins'))])),
       ],
       onSelected: (val) {
         if (val == 1) onSelectScreen(3);
