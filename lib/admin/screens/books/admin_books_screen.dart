@@ -144,21 +144,46 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           );
         }
         return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Listing Management', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                const SizedBox(height: AppSizes.s4),
-                Text('Inspect listing details, toggle featured/approval status, or prune listings.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
-              ],
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Listing Management', style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                  const SizedBox(height: AppSizes.s4),
+                  Text('Inspect listing details, toggle featured/approval status, or prune listings.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
+                ],
+              ),
             ),
-            Row(children: [
-              SizedBox(width: 200, child: AdminSearchBar(hintText: 'Search listings...', onChanged: (v) => listingProvider.setSearch(v))),
-              const SizedBox(width: AppSizes.s12),
-              filterDropdown,
-            ]),
+            const SizedBox(width: AppSizes.s12),
+            SizedBox(width: 200, child: AdminSearchBar(hintText: 'Search listings...', onChanged: (v) => listingProvider.setSearch(v))),
+            const SizedBox(width: AppSizes.s12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.s12),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.bgSurfaceDark.withValues(alpha: 0.5) : AppColors.bgSurface.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                border: Border.all(color: isDark ? AppColors.borderDark.withValues(alpha: 0.3) : AppColors.border.withValues(alpha: 0.5)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  value: _selectedCategory,
+                  isExpanded: false,
+                  hint: Text('All Categories', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  dropdownColor: isDark ? AppColors.bgCardDark : Colors.white,
+                  style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                  icon: Icon(Icons.arrow_drop_down_rounded, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary),
+                  onChanged: (val) {
+                    setState(() => _selectedCategory = val);
+                    listingProvider.setCategory(val);
+                  },
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('All Categories', overflow: TextOverflow.ellipsis)),
+                    ...categoryProvider.categories.map((c) => DropdownMenuItem<String?>(value: c.name, child: Text(c.name, overflow: TextOverflow.ellipsis))),
+                  ],
+                ),
+              ),
+            ),
           ],
         );
       },

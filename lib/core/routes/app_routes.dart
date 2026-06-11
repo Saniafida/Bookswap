@@ -10,6 +10,7 @@ import '../../screens/search/search_screen.dart';
 import '../../screens/add_post/add_post_screen.dart';
 import '../../screens/post_details/post_details_screen.dart';
 import '../../screens/chat/chat_screen.dart';
+import '../../screens/notifications/notification_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../admin/screens/admin_shell_screen.dart';
@@ -36,6 +37,7 @@ class AppRoutes {
   static const String editProfile = '/edit-profile';
 
   // ── Admin ─────────────────────────────────────────────────────────────────
+  static const String notifications = '/notifications';
   static const String adminDashboard = '/admin';
 
   /// Central route generator — plug into [MaterialApp.onGenerateRoute].
@@ -122,6 +124,9 @@ class AppRoutes {
 
       case editProfile:
         return const EditProfileScreen();
+
+      case notifications:
+        return const NotificationScreen();
 
       case adminDashboard:
         return const AdminShellScreen();

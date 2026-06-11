@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/notification_provider.dart';
 import '../../bottom_nav/bottom_nav_screen.dart';
 
 class HomeHeader extends StatefulWidget {
@@ -58,9 +60,16 @@ class _HomeHeaderState extends State<HomeHeader>
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning ☀️';
-    if (hour < 17) return 'Good afternoon 👋';
-    return 'Good evening 🌙';
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  String _getGreetingEmoji() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return '👋';
+    if (hour < 17) return '☀️';
+    return '🌙';
   }
 
   @override
@@ -69,17 +78,50 @@ class _HomeHeaderState extends State<HomeHeader>
     final user = authProvider.currentUser;
     final firstName = (user?.fullName ?? 'Friend').split(' ').first;
     final greeting = _getGreeting();
+    final emoji = _getGreetingEmoji();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSizes.s20, AppSizes.s20, AppSizes.s20, AppSizes.s8),
+          AppSizes.s20, AppSizes.s16, AppSizes.s20, AppSizes.s12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Greeting Row ───────────────────────────────────────────────
+          // ── Top bar: Hamburger | Notification + Avatar ─────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Hamburger menu
+              GestureDetector(
+                onTap: () {},
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                    border: Border.all(
+                      color: AppColors.border.withValues(alpha: 0.8),
+                    ),
+                    boxShadow: AppColors.softShadow,
+                  ),
+                  child: const Icon(
+                    Icons.menu_rounded,
+                    color: AppColors.textPrimary,
+                    size: 22,
+                  ),
+                ),
+              ),
+
+              const Spacer(),
+
+              // Notification bell
+              RotationTransition(
+                turns: _bellAnimation,
+                child: _NotificationBell(),
+              ),
+
+              const SizedBox(width: AppSizes.s10),
+
               // Avatar
               GestureDetector(
                 onTap: () {
@@ -90,20 +132,20 @@ class _HomeHeaderState extends State<HomeHeader>
                 child: Hero(
                   tag: 'user_avatar',
                   child: Container(
-                    width: 50,
-                    height: 50,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: user?.avatarUrl == null
                           ? AppColors.primaryGradient
                           : null,
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.25),
+                        color: AppColors.primary.withValues(alpha: 0.30),
                         width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.18),
+                          color: AppColors.primary.withValues(alpha: 0.20),
                           blurRadius: 10,
                           offset: const Offset(0, 3),
                         ),
@@ -122,44 +164,39 @@ class _HomeHeaderState extends State<HomeHeader>
                   ),
                 ),
               ),
-
-              const SizedBox(width: AppSizes.s14),
-
-              // Greeting text
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greeting,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Hello, $firstName 😊',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.4,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Notification bell
-              RotationTransition(
-                turns: _bellAnimation,
-                child: _NotificationBell(),
-              ),
             ],
+          ),
+
+          const SizedBox(height: AppSizes.s16),
+
+          // ── Greeting ───────────────────────────────────────────────────
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '$greeting, $firstName ',
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                TextSpan(
+                  text: emoji,
+                  style: const TextStyle(fontSize: 22),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'What are you looking for today?',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textMuted,
+            ),
           ),
 
           const SizedBox(height: AppSizes.s16),
@@ -171,8 +208,9 @@ class _HomeHeaderState extends State<HomeHeader>
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
+                height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: _isFocused ? 0.95 : 0.88),
+                  color: Colors.white.withValues(alpha: _isFocused ? 0.97 : 0.90),
                   borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                   border: Border.all(
                     color: _isFocused
@@ -202,9 +240,9 @@ class _HomeHeaderState extends State<HomeHeader>
                           color: AppColors.textPrimary,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Find anything you need...',
+                          hintText: 'Search anything on Swaply...',
                           hintStyle: GoogleFonts.poppins(
-                            fontSize: 14,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w400,
                             color: AppColors.textMuted,
                           ),
@@ -213,12 +251,12 @@ class _HomeHeaderState extends State<HomeHeader>
                             color: _isFocused
                                 ? AppColors.primary
                                 : AppColors.textMuted,
-                            size: AppSizes.iconMd,
+                            size: 22,
                           ),
                           filled: false,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: AppSizes.s16,
-                            vertical: AppSizes.s16,
+                            vertical: AppSizes.s14,
                           ),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
@@ -243,7 +281,7 @@ class _HomeHeaderState extends State<HomeHeader>
                         child: const Icon(
                           Icons.tune_rounded,
                           color: Colors.white,
-                          size: AppSizes.iconMd,
+                          size: 22,
                         ),
                       ),
                     ),
@@ -266,7 +304,7 @@ class _HomeHeaderState extends State<HomeHeader>
         child: Text(
           name.isNotEmpty ? name[0].toUpperCase() : 'S',
           style: GoogleFonts.poppins(
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -281,21 +319,16 @@ class _NotificationBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final count = context.watch<NotificationProvider>().unreadCount;
+
     return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No new notifications'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      },
+      onTap: () => Navigator.pushNamed(context, AppRoutes.notifications),
       child: Container(
-        width: 46,
-        height: 46,
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.90),
-          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
           border: Border.all(color: AppColors.border),
           boxShadow: AppColors.softShadow,
         ),
@@ -305,21 +338,28 @@ class _NotificationBell extends StatelessWidget {
             const Icon(
               Icons.notifications_outlined,
               color: AppColors.textSecondary,
-              size: AppSizes.iconMd,
+              size: 22,
             ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
+            if (count > 0)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    color: AppColors.error,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    count > 9 ? '9+' : '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

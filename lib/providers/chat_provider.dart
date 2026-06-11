@@ -90,17 +90,25 @@ class ChatProvider extends ChangeNotifier {
   // ── Send message ──────────────────────────────────────────────────────────
   Future<bool> sendMessage(MessageModel message, {String? currentUserId}) async {
     try {
-      await SupabaseService.table('messages').insert(message.toJson());
+      final response = await SupabaseService.table('messages')
+          .insert(message.toJson())
+          .select()
+          .single();
 
-      // Update local state immediately so badge shows without realtime delay
+      // Add sent message to local list immediately (no wait for realtime)
+      final sentMessage = MessageModel.fromJson(response);
+      _messages.add(sentMessage);
+      notifyListeners();
+
+      // Update local chat state so badge shows without realtime delay
       if (currentUserId != null) {
-        final idx = _chats.indexWhere((c) => c.id == message.chatId);
+        final idx = _chats.indexWhere((c) => c.id == sentMessage.chatId);
         if (idx != -1) {
           final chat = _chats.removeAt(idx);
           final isUser1 = chat.user1Id == currentUserId;
           _chats.insert(0, chat.copyWith(
-            lastMessage: message.text,
-            lastMessageAt: message.createdAt,
+            lastMessage: sentMessage.text,
+            lastMessageAt: sentMessage.createdAt,
             unreadCount1: chat.unreadCount1 + (isUser1 ? 0 : 1),
             unreadCount2: chat.unreadCount2 + (isUser1 ? 1 : 0),
           ));
@@ -135,6 +143,14 @@ class ChatProvider extends ChangeNotifier {
         if (_messages[i].senderId != userId && !_messages[i].isRead) {
           _messages[i] = _messages[i].copyWith(isRead: true);
         }
+      }
+      // Reset local unread count so badge disappears from chat list
+      final chatIdx = _chats.indexWhere((c) => c.id == chatId);
+      if (chatIdx != -1) {
+        _chats[chatIdx] = _chats[chatIdx].copyWith(
+          unreadCount1: isUser1 ? 0 : _chats[chatIdx].unreadCount1,
+          unreadCount2: isUser1 ? _chats[chatIdx].unreadCount2 : 0,
+        );
       }
       notifyListeners();
     } catch (e) {

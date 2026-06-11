@@ -3,7 +3,7 @@ import '../services/supabase_service.dart';
 
 /// The single admin UID — change this to rotate the admin account
 /// without any database migration.
-const String kAdminUid = '23e1e885-ce66-4740-9c75-404b1a1f6b23';
+const String kAdminUid = '154ed9ca-c593-4d91-a700-fbea88b14672';
 
 /// Handles all role resolution and persistence logic.
 ///

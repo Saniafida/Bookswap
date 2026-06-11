@@ -149,7 +149,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           );
         }
         return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,11 +158,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 Text('View, search, ban/unban, and modify roles of platform accounts.', style: GoogleFonts.poppins(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary, fontSize: 13)),
               ],
             ),
-            Row(children: [
-              Expanded(child: AdminSearchBar(hintText: 'Search users...', onChanged: (v) => provider.setSearch(v))),
-              const SizedBox(width: AppSizes.s12),
-              filterBtn,
-            ]),
+            const Spacer(),
+            SizedBox(width: 220, child: AdminSearchBar(hintText: 'Search users...', onChanged: (v) => provider.setSearch(v))),
+            const SizedBox(width: AppSizes.s12),
+            filterBtn,
           ],
         );
       },

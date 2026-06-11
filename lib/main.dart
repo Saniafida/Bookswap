@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/services/supabase_service.dart';
+import 'core/services/fcm_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_routes.dart';
 import 'providers/auth_provider.dart';
+import 'providers/notification_provider.dart';
 import 'providers/listing_provider.dart';
 import 'providers/home_provider.dart';
 import 'providers/favorite_provider.dart';
@@ -43,6 +45,9 @@ Future<void> main() async {
   // Initialize Supabase
   await SupabaseService.initialize();
 
+  // Initialize FCM
+  await FcmService.initialize();
+
   runApp(const SwaplyApp());
 }
 
@@ -56,6 +61,13 @@ class SwaplyApp extends StatelessWidget {
         // Auth is created first — others may depend on it
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, NotificationProvider>(
+          create: (_) => NotificationProvider(),
+          update: (_, auth, notif) {
+            if (auth.isAuthenticated) notif?.init();
+            return notif ?? NotificationProvider();
+          },
         ),
         ChangeNotifierProxyProvider<AuthProvider, ListingProvider>(
           create: (_) => ListingProvider(),

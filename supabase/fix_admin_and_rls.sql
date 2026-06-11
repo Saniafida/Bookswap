@@ -5,12 +5,11 @@
 
 -- ─────────────────────────────────────────────────────────────
 -- 1. FIX: Set admin role for the actual admin UID
---    The handle_new_user() trigger hardcodes 154ed9ca-... but
---    the actual admin UID is 23e1e885-...
+--    The handle_new_user() trigger hardcodes the correct admin UID 154ed9ca-...
 -- ─────────────────────────────────────────────────────────────
 UPDATE profiles
 SET role = 'admin'
-WHERE id = '23e1e885-ce66-4740-9c75-404b1a1f6b23';
+WHERE id = '154ed9ca-c593-4d91-a700-fbea88b14672';
 
 -- ─────────────────────────────────────────────────────────────
 -- 2. FIX: Update trigger so NEW admin users get the right role
@@ -24,7 +23,7 @@ BEGIN
     COALESCE(NEW.email, ''),
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     CASE
-      WHEN NEW.id = '23e1e885-ce66-4740-9c75-404b1a1f6b23' THEN 'admin'::user_role
+      WHEN NEW.id = '154ed9ca-c593-4d91-a700-fbea88b14672' THEN 'admin'::user_role
       ELSE 'user'::user_role
     END
   )
@@ -43,7 +42,7 @@ RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM profiles
     WHERE id = auth.uid() AND role = 'admin'
-  );
+  ) OR auth.uid() = '154ed9ca-c593-4d91-a700-fbea88b14672'::uuid;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- ─────────────────────────────────────────────────────────────
@@ -93,3 +92,23 @@ CREATE POLICY "Listing owners can delete images"
 ALTER TABLE listings DROP CONSTRAINT IF EXISTS listings_listing_type_check;
 ALTER TABLE listings ADD CONSTRAINT listings_listing_type_check
   CHECK (listing_type IN ('sell', 'exchange', 'donate', 'sell_exchange', 'sellExchange'));
+
+-- ─────────────────────────────────────────────────────────────
+-- 6. FIX: Add missing UPDATE policies for chats & messages
+--    Without these, markAsRead() silently fails (RLS blocks UPDATE)
+-- ─────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "Participants update own chats" ON chats;
+CREATE POLICY "Participants update own chats"
+  ON chats FOR UPDATE
+  USING (auth.uid() = user1_id OR auth.uid() = user2_id OR is_admin());
+
+DROP POLICY IF EXISTS "Participants update messages in own chats" ON messages;
+CREATE POLICY "Participants update messages in own chats"
+  ON messages FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM chats
+      WHERE id = chat_id
+        AND (user1_id = auth.uid() OR user2_id = auth.uid())
+    ) OR is_admin()
+  );

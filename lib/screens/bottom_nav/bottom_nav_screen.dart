@@ -8,6 +8,7 @@ import '../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/listing_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../widgets/animated_badge.dart';
 import '../home/home_screen.dart';
 import '../search/search_screen.dart';
@@ -59,6 +60,7 @@ class BottomNavScreenState extends State<BottomNavScreen> {
     final chatUnreadCount = currentUserId != null
         ? context.watch<ChatProvider>().totalUnreadFor(currentUserId)
         : 0;
+    final notificationCount = context.watch<NotificationProvider>().unreadCount;
 
     return Scaffold(
       extendBody: true,
@@ -85,11 +87,11 @@ class BottomNavScreenState extends State<BottomNavScreen> {
       ),
       bottomNavigationBar: isWide
           ? null
-          : _buildBottomBar(context, theme, isDark, chatUnreadCount),
+          : _buildBottomBar(context, theme, isDark, chatUnreadCount, notificationCount),
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, ThemeData theme, bool isDark, int chatUnreadCount) {
+  Widget _buildBottomBar(BuildContext context, ThemeData theme, bool isDark, int chatUnreadCount, int notificationCount) {
     return Container(
       height: 88,
       alignment: Alignment.center,
@@ -110,22 +112,25 @@ class BottomNavScreenState extends State<BottomNavScreen> {
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-                border: Border.all(
-                  color: AppColors.border.withValues(alpha: 0.6),
-                  width: 1,
-                ),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+                    border: Border.all(
+                      color: AppColors.border.withValues(alpha: 0.6),
+                      width: 1,
+                    ),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
                   final double totalWidth = constraints.maxWidth;
                   final double tabWidth = totalWidth / 5;
 
@@ -206,6 +211,68 @@ class BottomNavScreenState extends State<BottomNavScreen> {
               ),
             ),
           ),
+          ),
+          // ── Notification bell overlay ──────────────────────────────────
+          Positioned(
+            right: 8,
+            top: -8,
+            child: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/notifications'),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: notificationCount > 0
+                      ? AppColors.primaryGradient
+                      : LinearGradient(colors: [
+                          Colors.grey.shade300,
+                          Colors.grey.shade400,
+                        ]),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (notificationCount > 0
+                              ? AppColors.primary
+                              : Colors.grey)
+                          .withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_rounded,
+                        color: Colors.white, size: 18),
+                    if (notificationCount > 0)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            notificationCount > 9
+                                ? '9+'
+                                : '$notificationCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

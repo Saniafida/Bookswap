@@ -38,56 +38,56 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return Container(
       color: bgColor,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top,
-      ),
-      child: SizedBox(
-        height: height - MediaQuery.of(context).padding.top,
-        child: Row(
-          children: [
-            if (leading != null)
-              leading!
-            else if (showBack)
-              IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded,
-                    size: AppSizes.iconSm, color: fgColor),
-                onPressed: () => Navigator.pop(context),
-              )
-            else
-              const SizedBox(width: AppSizes.s16),
-            Expanded(
-              child: centerTitle
-                  ? Center(
-                      child: titleWidget ??
-                          Text(
-                            title ?? '',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.3,
-                              color: fgColor,
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: height,
+          child: Row(
+            children: [
+              if (leading != null)
+                leading!
+              else if (showBack)
+                IconButton(
+                  icon: Icon(Icons.arrow_back_ios_new_rounded,
+                      size: AppSizes.iconSm, color: fgColor),
+                  onPressed: () => Navigator.pop(context),
+                )
+              else
+                const SizedBox(width: AppSizes.s16),
+              Expanded(
+                child: centerTitle
+                    ? Center(
+                        child: titleWidget ??
+                            Text(
+                              title ?? '',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.3,
+                                color: fgColor,
+                              ),
                             ),
+                      )
+                    : titleWidget ??
+                        Text(
+                          title ?? '',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                            color: fgColor,
                           ),
-                    )
-                  : titleWidget ??
-                      Text(
-                        title ?? '',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.3,
-                          color: fgColor,
                         ),
-                      ),
-            ),
-            if (actions != null) ...[
-              ...actions!,
-              const SizedBox(width: AppSizes.s8),
-            ] else
-              const SizedBox(width: AppSizes.s16),
-          ],
+              ),
+              if (actions != null) ...[
+                ...actions!,
+                const SizedBox(width: AppSizes.s8),
+              ] else
+                const SizedBox(width: AppSizes.s16),
+            ],
+          ),
         ),
       ),
     );

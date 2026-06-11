@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/routes/app_routes.dart';
@@ -498,22 +499,26 @@ class _AdminHeader extends StatelessWidget {
   }
 
   Widget _buildNotifications(BuildContext context) {
-    return PopupMenuButton<void>(
-      tooltip: 'Notifications',
-      child: Stack(
+    final count = context.watch<NotificationProvider>().unreadCount;
+    return IconButton(
+      icon: Stack(
         clipBehavior: Clip.none,
         children: [
-          Icon(Icons.notifications_outlined, color: Theme.of(context).colorScheme.onSurface, size: AppSizes.iconMd),
-          Positioned(right: -2, top: -2, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle))),
+          const Icon(Icons.notifications_outlined, size: AppSizes.iconMd),
+          if (count > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                child: Text(count > 9 ? '9+' : '$count',
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+              ),
+            ),
         ],
       ),
-      offset: const Offset(0, 44),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
-      itemBuilder: (context) => [
-        const PopupMenuItem(enabled: false, child: Text('Recent Notifications', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, color: AppColors.textPrimary))),
-        const PopupMenuDivider(),
-        const PopupMenuItem(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('System Online', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600, fontSize: 12)), Text('All server metrics look healthy.', style: TextStyle(fontFamily: 'Poppins', color: AppColors.textSecondary, fontSize: 11))])),
-      ],
+      onPressed: () => Navigator.pushNamed(context, AppRoutes.notifications),
     );
   }
 
