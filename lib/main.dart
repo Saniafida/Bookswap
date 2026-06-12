@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -45,8 +46,13 @@ Future<void> main() async {
   // Initialize Supabase
   await SupabaseService.initialize();
 
-  // Initialize FCM
-  await FcmService.initialize();
+  // Initialize Firebase (required for FCM push notifications)
+  try {
+    await Firebase.initializeApp();
+    await FcmService.initialize();
+  } catch (_) {
+    // FCM/Firebase not configured — in-app notifications via Supabase still work
+  }
 
   runApp(const SwaplyApp());
 }

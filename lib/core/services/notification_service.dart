@@ -23,61 +23,79 @@ class NotificationService {
   }
 
   Future<void> subscribeToNotifications(String userId) async {
-    _channel?.unsubscribe();
-    _channel = SupabaseService.client
-        .channel('notifications:$userId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'notifications',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'user_id',
-            value: userId,
-          ),
-          callback: (_) => _refreshNotifications(userId),
-        )
-        .subscribe();
+    try {
+      _channel?.unsubscribe();
+      _channel = SupabaseService.client
+          .channel('notifications:$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'notifications',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) => _refreshNotifications(userId),
+          )
+          .subscribe();
 
-    await _refreshNotifications(userId);
+      await _refreshNotifications(userId);
+    } catch (_) {
+      // notifications table may not exist yet until SQL migration is run
+    }
   }
 
   Future<List<NotificationModel>> getNotifications(String userId, {int limit = 50}) async {
-    final response = await SupabaseService.table('notifications')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false)
-        .limit(limit);
+    try {
+      final response = await SupabaseService.table('notifications')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(limit);
 
-    final list = (response as List).map((e) => NotificationModel.fromJson(e)).toList();
-    return list;
+      final list = (response as List).map((e) => NotificationModel.fromJson(e)).toList();
+      return list;
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<int> getUnreadCount(String userId) async {
-    final response = await SupabaseService.table('notifications')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('is_read', false)
-        .count();
+    try {
+      final response = await SupabaseService.table('notifications')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('is_read', false)
+          .count();
 
-    return response.count!;
+      return response.count!;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<void> markAsRead(String notificationId) async {
-    await SupabaseService.table('notifications')
-        .update({'is_read': true})
-        .eq('id', notificationId);
+    try {
+      await SupabaseService.table('notifications')
+          .update({'is_read': true})
+          .eq('id', notificationId);
+    } catch (_) {}
   }
 
   Future<void> markAllAsRead(String userId) async {
-    await SupabaseService.table('notifications')
-        .update({'is_read': true})
-        .eq('user_id', userId)
-        .eq('is_read', false);
+    try {
+      await SupabaseService.table('notifications')
+          .update({'is_read': true})
+          .eq('user_id', userId)
+          .eq('is_read', false);
+    } catch (_) {}
   }
 
   Future<void> deleteNotification(String id) async {
-    await SupabaseService.table('notifications').delete().eq('id', id);
+    try {
+      await SupabaseService.table('notifications').delete().eq('id', id);
+    } catch (_) {}
   }
 
   Future<void> createNotification({
@@ -87,13 +105,15 @@ class NotificationService {
     required String message,
     Map<String, dynamic> data = const {},
   }) async {
-    await SupabaseService.client.rpc('create_notification', params: {
-      'p_user_id': userId,
-      'p_type': type,
-      'p_title': title,
-      'p_message': message,
-      'p_data': data,
-    });
+    try {
+      await SupabaseService.client.rpc('create_notification', params: {
+        'p_user_id': userId,
+        'p_type': type,
+        'p_title': title,
+        'p_message': message,
+        'p_data': data,
+      });
+    } catch (_) {}
   }
 
   Future<void> _refreshNotifications(String userId) async {

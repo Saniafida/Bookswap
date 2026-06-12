@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     Future.delayed(const Duration(seconds: 4), () {
       if (!mounted) return;
+      if (!_heroPageController.hasClients) return;
       final next = (_heroBannerPage + 1) % 3;
       _heroPageController.animateToPage(
         next,
@@ -192,6 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: AppSizes.s8),
                           child: CategoryList(
+                            selectedCategoryId: _selectedCategoryId,
                             onCategorySelected: (id) =>
                                 setState(() => _selectedCategoryId = id),
                           ),

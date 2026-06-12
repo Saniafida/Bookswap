@@ -108,25 +108,30 @@ class _AdminStatCardState extends State<AdminStatCard> with SingleTickerProvider
                         textBaseline: TextBaseline.alphabetic,
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         children: [
-                          Text(
-                            parsed != null ? '${_displayedValue.toInt()}' : widget.value,
-                            style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                          Flexible(
+                            child: Text(
+                              parsed != null ? '${_displayedValue.toInt()}' : widget.value,
+                              style: GoogleFonts.poppins(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           if (widget.trend != null && widget.isPositive != null) ...[
-                            const SizedBox(width: AppSizes.s8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (widget.isPositive! ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(widget.isPositive! ? Icons.trending_up_rounded : Icons.trending_down_rounded, size: 12, color: widget.isPositive! ? AppColors.success : AppColors.error),
-                                  const SizedBox(width: 2),
-                                  Text(widget.trend!, style: GoogleFonts.poppins(color: widget.isPositive! ? AppColors.success : AppColors.error, fontSize: 10, fontWeight: FontWeight.w700)),
-                                ],
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (widget.isPositive! ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(widget.isPositive! ? Icons.trending_up_rounded : Icons.trending_down_rounded, size: 12, color: widget.isPositive! ? AppColors.success : AppColors.error),
+                                    const SizedBox(width: 2),
+                                    Flexible(child: Text(widget.trend!, style: GoogleFonts.poppins(color: widget.isPositive! ? AppColors.success : AppColors.error, fontSize: 10, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                  ],
+                                ),
                               ),
                             ),
                           ],

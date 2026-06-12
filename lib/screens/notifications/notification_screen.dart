@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_sizes.dart';
 import '../../models/notification_model.dart';
 import '../../providers/notification_provider.dart';
 import '../../widgets/custom_appbar.dart';
@@ -107,13 +106,13 @@ class NotificationScreen extends StatelessWidget {
 
     final chatId = notification.data['chat_id'] as String?;
     if (chatId != null) {
-      Navigator.pushNamed(context, '/chat', arguments: chatId);
+      Navigator.pushNamed(context, '/chat', arguments: <String, dynamic>{'chatId': chatId});
       return;
     }
 
     final listingId = notification.data['listing_id'] as String?;
     if (listingId != null) {
-      Navigator.pushNamed(context, '/listing-details', arguments: listingId);
+      Navigator.pushNamed(context, '/listing-details', arguments: <String, dynamic>{'listingId': listingId});
     }
   }
 }

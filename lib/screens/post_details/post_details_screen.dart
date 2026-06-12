@@ -11,7 +11,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/listing_provider.dart';
-import '../../widgets/glass_card.dart';
 import '../../widgets/premium_button.dart';
 import '../../widgets/premium_dialogs.dart';
 import '../../widgets/premium_loading.dart';
@@ -105,6 +104,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     };
   }
 
+  String _formatPrice(double? price, String type) {
+    if (price != null) {
+      final RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+      final String Function(Match) mathFunc = (Match match) => '${match[1]},';
+      final String formatted = price.toStringAsFixed(0).replaceAllMapped(reg, mathFunc);
+      return 'PKR $formatted';
+    }
+    return type == 'donate' ? 'Free' : '';
+  }
+
   Future<void> _handleMessageAction(BuildContext context, String currentUserId, String ownerId) async {
     showDialog(
       context: context,
@@ -176,7 +185,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final listing = _listing;
     if (listing == null) return;
     Clipboard.setData(ClipboardData(
-      text: 'Check out "${listing.title}" on Swaply! Price: ${listing.priceLabel}',
+      text: 'Check out "${listing.title}" on Swaply! Price: ${_formatPrice(listing.price, listing.listingType)}',
     ));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -225,525 +234,536 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ? favoriteProvider.isFavorited(widget.listingId)
         : false;
 
-    Widget bodyWidget;
-
     if (_isLoading) {
-      bodyWidget = const Center(
-        key: ValueKey('loading'),
-        child: PremiumLoading(size: 32, message: 'Loading listing details...'),
-      );
-    } else if (_errorMessage != null || _listing == null) {
-      bodyWidget = Center(
-        key: const ValueKey('error'),
-        child: Padding(
-          padding: AppSizes.pagePaddingLarge,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-                ),
-                child: const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.error),
-              ),
-              const SizedBox(height: AppSizes.s20),
-              Text(
-                'Something went wrong',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: AppSizes.s8),
-              Text(
-                _errorMessage ?? 'Listing not found',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSizes.s24),
-              PremiumButton(
-                label: 'Try Again',
-                icon: const Icon(Icons.refresh_rounded, size: 18, color: Colors.white),
-                onPressed: _loadListingDetails,
-                width: 160,
-              ),
-            ],
-          ),
+      return const Scaffold(
+        body: Center(
+          child: PremiumLoading(size: 32, message: 'Loading listing details...'),
         ),
       );
-    } else {
-      final listing = _listing!;
-      final isOwner = currentUserId == listing.userId;
+    }
 
-      final imageUrls = listing.images.map((img) => img.url).toList();
-      final hasImages = imageUrls.isNotEmpty;
-
-      List<Widget> carouselSlides = [];
-      if (hasImages) {
-        for (final url in imageUrls) {
-          carouselSlides.add(
-            Stack(
-              fit: StackFit.expand,
+    if (_errorMessage != null || _listing == null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: AppSizes.pagePaddingLarge,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) => _buildCoverPlaceholder(theme),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+                  ),
+                  child: const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.error),
+                ),
+                const SizedBox(height: AppSizes.s20),
+                Text(
+                  'Something went wrong',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.s8),
+                Text(
+                  _errorMessage ?? 'Listing not found',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.s24),
+                PremiumButton(
+                  label: 'Try Again',
+                  icon: const Icon(Icons.refresh_rounded, size: 18, color: Colors.white),
+                  onPressed: _loadListingDetails,
+                  width: 160,
                 ),
               ],
             ),
-          );
-        }
-      } else {
-        carouselSlides.add(_buildCoverPlaceholder(theme));
-      }
+          ),
+        ),
+      );
+    }
 
-      final carouselWidget = SizedBox(
-        height: 420,
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: _pageController,
-              itemCount: carouselSlides.length,
-              onPageChanged: (index) {
-                setState(() {
-                  _carouselIndex = index;
-                });
-              },
-              itemBuilder: (context, index) => carouselSlides[index],
-            ),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.3),
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.5),
+    final listing = _listing!;
+    final isOwner = currentUserId == listing.userId;
+    final imageUrls = listing.images.map((img) => img.url).toList();
+    final hasImages = imageUrls.isNotEmpty;
+
+    return Scaffold(
+      backgroundColor: AppColors.bgLight,
+      body: Stack(
+        children: [
+          // Scrollable content
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // Image slider app bar
+              SliverAppBar(
+                expandedHeight: 380,
+                backgroundColor: AppColors.bgLight,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                pinned: true,
+                stretch: true,
+                leadingWidth: 56,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(100),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          color: Colors.black.withValues(alpha: 0.25),
+                          child: IconButton(
+                            icon: const Icon(Icons.share_rounded, size: 16, color: Colors.white),
+                            onPressed: _handleShare,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      PageView.builder(
+                        controller: _pageController,
+                        itemCount: hasImages ? imageUrls.length : 1,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _carouselIndex = index;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          if (!hasImages) {
+                            return _buildCoverPlaceholder(theme);
+                          }
+                          return Image.network(
+                            imageUrls[index],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => _buildCoverPlaceholder(theme),
+                          );
+                        },
+                      ),
+                      // Soft gradient overlay
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.25),
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.35),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Dots Indicator
+                      if (hasImages && imageUrls.length > 1)
+                        Positioned(
+                          bottom: 24,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              imageUrls.length,
+                              (index) => AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                height: 6,
+                                width: _carouselIndex == index ? 20 : 6,
+                                decoration: BoxDecoration(
+                                  color: _carouselIndex == index ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Slide Index Badge
+                      if (hasImages)
+                        Positioned(
+                          bottom: 20,
+                          right: 16,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              '${_carouselIndex + 1} / ${imageUrls.length}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              bottom: 24,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  carouselSlides.length,
-                  (index) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 350),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    height: 6,
-                    width: _carouselIndex == index ? 24 : 6,
-                    decoration: BoxDecoration(
-                      color: _carouselIndex == index ? Colors.white : Colors.white.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                ),
-                child: Text(
-                  '${_carouselIndex + 1} / ${carouselSlides.length}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
 
-      bodyWidget = Stack(
-        key: const ValueKey('loaded'),
-        children: [
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(height: 420),
-                Transform.translate(
-                  offset: const Offset(0, -24),
-                  child: GlassCard(
-                    padding: EdgeInsets.zero,
-                    borderRadius: AppSizes.radiusXl,
-                    margin: const EdgeInsets.symmetric(horizontal: AppSizes.s16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(AppSizes.s20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: _getListingTypeColor(listing.listingType).withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                listing.listingTypeIcon,
-                                                size: 14,
-                                                color: _getListingTypeColor(listing.listingType),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                listing.listingTypeLabel,
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _getListingTypeColor(listing.listingType),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(height: AppSizes.s12),
-                                        Text(
-                                          listing.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w700,
-                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-                                            height: 1.25,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSizes.s16),
-                                  if (listing.price != null || listing.listingType == 'donate')
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        gradient: AppColors.primaryGradient,
-                                        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppColors.primary.withValues(alpha: 0.25),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Text(
-                                        listing.priceLabel,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSizes.s20),
-                              Wrap(
-                                spacing: AppSizes.s8,
-                                runSpacing: AppSizes.s8,
-                                children: [
-                                  if (listing.categoryName != null)
-                                    _buildMetricChip(
-                                      icon: Icons.folder_open_rounded,
-                                      label: listing.categoryName!,
-                                      theme: theme,
-                                      isDark: isDark,
-                                    ),
-                                  _buildMetricChip(
-                                    icon: Icons.star_border_rounded,
-                                    label: listing.conditionLabel,
-                                    theme: theme,
-                                    isDark: isDark,
-                                  ),
-                                  if (listing.location != null)
-                                    _buildMetricChip(
-                                      icon: Icons.location_on_outlined,
-                                      label: listing.location!,
-                                      theme: theme,
-                                      isDark: isDark,
-                                    ),
-                                  if (listing.price != null && listing.isNegotiable)
-                                    _buildMetricChip(
-                                      icon: Icons.handshake_rounded,
-                                      label: 'Negotiable',
-                                      theme: theme,
-                                      isDark: isDark,
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: isDark ? AppColors.borderDark.withValues(alpha: 0.5) : AppColors.border.withValues(alpha: 0.5),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(AppSizes.s20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 4,
-                                    height: 18,
-                                    decoration: BoxDecoration(
-                                      gradient: AppColors.primaryGradient,
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSizes.s10),
-                                  Flexible(
-                                    child: Text(
-                                      'Description',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSizes.s12),
-                              Text(
-                                listing.description ?? 'No description provided.',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  height: 1.7,
-                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSizes.s16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.s16),
-                  child: GlassCard(
-                    borderRadius: AppSizes.radiusLg,
-                    padding: const EdgeInsets.all(AppSizes.s16),
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.profile,
-                          arguments: {'userId': listing.userId},
-                        );
-                      },
-                      child: Row(
+              // Scrollable body details
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 130), // Extra bottom padding for floating bar
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Tag category rows
+                      Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              gradient: AppColors.primaryGradient,
-                              borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                              color: _getListingTypeColor(listing.listingType).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(100),
                             ),
-                            child: CircleAvatar(
-                              radius: 23,
-                              backgroundColor: Colors.transparent,
-                              backgroundImage: listing.ownerAvatarUrl != null
-                                  ? NetworkImage(listing.ownerAvatarUrl!)
-                                  : null,
-                              child: listing.ownerAvatarUrl == null
-                                  ? Text(
-                                      ((listing.ownerName ?? '').isNotEmpty ? listing.ownerName![0] : 'U').toUpperCase(),
-                                      style: GoogleFonts.poppins(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 18,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(width: AppSizes.s14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  listing.ownerName ?? 'Unknown User',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-                                  ),
+                                Icon(
+                                  listing.listingTypeIcon,
+                                  size: 13,
+                                  color: _getListingTypeColor(listing.listingType),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(width: 4),
                                 Text(
-                                  '${_formatTimeAgo(listing.createdAt)} \u00b7 Listing Owner',
+                                  listing.listingTypeLabel,
                                   style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    color: isDark ? AppColors.textMutedDark : AppColors.textMuted,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: _getListingTypeColor(listing.listingType),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                          const SizedBox(width: 8),
+                          if (listing.categoryName != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: Text(
+                                listing.categoryName!,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
                             ),
-                            child: Icon(
-                              Icons.chevron_right_rounded,
-                              size: 18,
-                              color: AppColors.primary,
-                            ),
-                          ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      // Title & Price
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              listing.title,
+                              style: GoogleFonts.poppins(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                height: 1.25,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          if (listing.price != null || listing.listingType == 'donate')
+                            Text(
+                              _formatPrice(listing.price, listing.listingType),
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primaryLight,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Metric Items Grid horizontal row
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _buildMetricItem(
+                              icon: Icons.star_rounded,
+                              title: 'Condition',
+                              value: listing.conditionLabel,
+                              isDark: isDark,
+                            ),
+                            const SizedBox(width: 10),
+                            _buildMetricItem(
+                              icon: Icons.remove_red_eye_rounded,
+                              title: 'Views',
+                              value: '${listing.viewCount} views',
+                              isDark: isDark,
+                            ),
+                            if (listing.location != null) ...[
+                              const SizedBox(width: 10),
+                              _buildMetricItem(
+                                icon: Icons.location_on_rounded,
+                                title: 'Location',
+                                value: listing.location!,
+                                isDark: isDark,
+                              ),
+                            ],
+                            if (listing.price != null && listing.isNegotiable) ...[
+                              const SizedBox(width: 10),
+                              _buildMetricItem(
+                                icon: Icons.handshake_rounded,
+                                title: 'Offer Type',
+                                value: 'Negotiable',
+                                isDark: isDark,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Divider line
+                      Container(
+                        height: 1,
+                        color: AppColors.border.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 24),
+                      // Product Description
+                      Text(
+                        'Product Description',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        listing.description ?? 'No description provided.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w400,
+                          height: 1.7,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      // Owner Card
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.profile,
+                            arguments: {'userId': listing.userId},
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.border.withValues(alpha: 0.5),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                backgroundImage: listing.ownerAvatarUrl != null
+                                    ? NetworkImage(listing.ownerAvatarUrl!)
+                                    : null,
+                                child: listing.ownerAvatarUrl == null
+                                    ? Text(
+                                        ((listing.ownerName ?? '').isNotEmpty ? listing.ownerName![0] : 'U').toUpperCase(),
+                                        style: GoogleFonts.poppins(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 18,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      listing.ownerName ?? 'Seller Partner',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14.5,
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${_formatTimeAgo(listing.createdAt)} \u00b7 Listing Owner',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: isDark ? AppColors.textMutedDark : AppColors.textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppColors.textSecondary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 120),
-              ],
-            ),
+              ),
+            ],
           ),
+
+          // Floating premium Bottom Bar
           Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: carouselWidget,
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(context).padding.bottom > 0 ? 16 : 20,
             child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSizes.s20,
-                    AppSizes.s16,
-                    AppSizes.s20,
-                    MediaQuery.of(context).padding.bottom + AppSizes.s16,
-                  ),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    border: Border(
-                      top: BorderSide(
-                        color: AppColors.border.withValues(alpha: 0.5),
-                        width: 1,
-                      ),
+                    color: Colors.white.withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppColors.border.withValues(alpha: 0.5),
+                      width: 1,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
+                      // Favorite button
                       Container(
-                        width: 52,
-                        height: 52,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                          color: AppColors.primary.withValues(alpha: 0.06),
+                          shape: BoxShape.circle,
                         ),
                         child: IconButton(
                           icon: Icon(
                             isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                             color: isFavorited ? AppColors.error : AppColors.primary,
-                            size: AppSizes.iconMd,
+                            size: 20,
                           ),
                           onPressed: _handleToggleFavorite,
                         ),
                       ),
-                      const SizedBox(width: AppSizes.s12),
+                      const SizedBox(width: 8),
+                      // Share button
                       Container(
-                        width: 52,
-                        height: 52,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                          color: AppColors.primary.withValues(alpha: 0.06),
+                          shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.share_rounded,
                             color: AppColors.primary,
-                            size: AppSizes.iconMd,
+                            size: 20,
                           ),
                           onPressed: _handleShare,
                         ),
                       ),
-                      const SizedBox(width: AppSizes.s12),
+                      const SizedBox(width: 12),
+                      // Action button (message / delete)
                       Expanded(
                         child: isOwner
-                            ? Row(
-                                children: [
-                                  Expanded(
-                                    child: PremiumButton(
-                                      label: 'Delete',
-                                      icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.white),
-                                      style: PremiumButtonStyle.primary,
-                                      color: AppColors.error,
-                                      height: AppSizes.buttonLg,
-                                      onPressed: _handleDelete,
-                                    ),
-                                  ),
-                                ],
+                            ? PremiumButton(
+                                label: 'Delete',
+                                icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.white),
+                                style: PremiumButtonStyle.primary,
+                                color: AppColors.error,
+                                height: 48,
+                                onPressed: _handleDelete,
                               )
                             : PremiumButton(
                                 label: currentUserId != null ? 'Message' : 'Sign in to Message',
-                                icon: Icon(
+                                icon: const Icon(
                                   Icons.forum_rounded,
                                   size: 18,
                                   color: Colors.white,
                                 ),
                                 style: PremiumButtonStyle.gradient,
-                                height: AppSizes.buttonLg,
+                                height: 48,
                                 onPressed: () {
                                   if (currentUserId != null) {
                                     _handleMessageAction(context, currentUserId, listing.userId);
@@ -764,60 +784,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             ),
           ),
         ],
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: AppColors.bgLight,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: AppSizes.s12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
-                width: 40,
-                height: 40,
-                color: Colors.black.withValues(alpha: 0.25),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSizes.s12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  color: Colors.black.withValues(alpha: 0.25),
-                  child: IconButton(
-                    icon: const Icon(Icons.share_rounded, size: AppSizes.iconSm, color: Colors.white),
-                    onPressed: _handleShare,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 450),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        child: bodyWidget,
       ),
     );
   }
@@ -865,32 +831,46 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     );
   }
 
-  Widget _buildMetricChip({
+  Widget _buildMetricItem({
     required IconData icon,
-    required String label,
-    required ThemeData theme,
+    required String title,
+    required String value,
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.s12, vertical: AppSizes.s8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.05) : AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+        color: const Color(0xFFFFF6E9), // Light cream background
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.06) : AppColors.border.withValues(alpha: 0.6),
+          color: const Color(0xFFEDD9C8).withValues(alpha: 0.6),
+          width: 1,
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 15, color: theme.colorScheme.primary),
-          const SizedBox(width: AppSizes.s6),
+          Row(
+            children: [
+              Icon(icon, size: 14, color: AppColors.primaryLight),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
           Text(
-            label,
+            value,
             style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
           ),
         ],

@@ -27,6 +27,7 @@ class RouteGuard {
     '/profile',
     '/edit-profile',
     '/admin',
+    '/notifications',
   };
 
   /// Routes exclusively for admin users.
@@ -43,6 +44,7 @@ class RouteGuard {
     '/profile',
     '/edit-profile',
     '/chat',
+    '/notifications',
   };
 
   // ── Guard logic ───────────────────────────────────────────────────────────

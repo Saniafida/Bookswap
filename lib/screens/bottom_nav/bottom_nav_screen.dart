@@ -8,7 +8,6 @@ import '../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/listing_provider.dart';
-import '../../providers/notification_provider.dart';
 import '../../widgets/animated_badge.dart';
 import '../home/home_screen.dart';
 import '../search/search_screen.dart';
@@ -60,7 +59,6 @@ class BottomNavScreenState extends State<BottomNavScreen> {
     final chatUnreadCount = currentUserId != null
         ? context.watch<ChatProvider>().totalUnreadFor(currentUserId)
         : 0;
-    final notificationCount = context.watch<NotificationProvider>().unreadCount;
 
     return Scaffold(
       extendBody: true,
@@ -87,11 +85,11 @@ class BottomNavScreenState extends State<BottomNavScreen> {
       ),
       bottomNavigationBar: isWide
           ? null
-          : _buildBottomBar(context, theme, isDark, chatUnreadCount, notificationCount),
+          : _buildBottomBar(context, theme, isDark, chatUnreadCount),
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, ThemeData theme, bool isDark, int chatUnreadCount, int notificationCount) {
+  Widget _buildBottomBar(BuildContext context, ThemeData theme, bool isDark, int chatUnreadCount) {
     return Container(
       height: 88,
       alignment: Alignment.center,
@@ -104,175 +102,74 @@ class BottomNavScreenState extends State<BottomNavScreen> {
           MediaQuery.of(context).padding.bottom > 0 ? 8 : AppSizes.s16,
         ),
         decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+          border: Border.all(
+            color: AppColors.border.withValues(alpha: 0.5),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
+              color: AppColors.primary.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-                    border: Border.all(
-                      color: AppColors.border.withValues(alpha: 0.6),
-                      width: 1,
-                    ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8),
+            color: Colors.white,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Expanded(
+                  child: _NavItem(
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home_rounded,
+                    label: AppStrings.navHome,
+                    isSelected: _currentIndex == 0,
+                    onTap: () => _onTabSelected(0),
                   ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                  final double totalWidth = constraints.maxWidth;
-                  final double tabWidth = totalWidth / 5;
-
-                  return Stack(
-                    children: [
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeOutBack,
-                        left: _currentIndex * tabWidth + (tabWidth - 64) / 2,
-                        top: 6,
-                        bottom: 6,
-                        width: 64,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.35),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Expanded(
-                            child: _NavItem(
-                              icon: Icons.home_outlined,
-                              activeIcon: Icons.home_rounded,
-                              label: AppStrings.navHome,
-                              isSelected: _currentIndex == 0,
-                              onTap: () => _onTabSelected(0),
-                            ),
-                          ),
-                          Expanded(
-                            child: _NavItem(
-                              icon: Icons.search_outlined,
-                              activeIcon: Icons.search_rounded,
-                              label: AppStrings.navSearch,
-                              isSelected: _currentIndex == 1,
-                              onTap: () => _onTabSelected(1),
-                            ),
-                          ),
-                          Expanded(
-                            child: _AddButton(
-                              isSelected: _currentIndex == 2,
-                              onTap: () => _onTabSelected(2),
-                            ),
-                          ),
-                          Expanded(
-                            child: _NavItem(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              activeIcon: Icons.chat_bubble_rounded,
-                              label: AppStrings.navChat,
-                              isSelected: _currentIndex == 3,
-                              onTap: () => _onTabSelected(3),
-                              unreadCount: chatUnreadCount,
-                            ),
-                          ),
-                          Expanded(
-                            child: _NavItem(
-                              icon: Icons.person_outline_rounded,
-                              activeIcon: Icons.person_rounded,
-                              label: AppStrings.navProfile,
-                              isSelected: _currentIndex == 4,
-                              onTap: () => _onTabSelected(4),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
-              ),
+                ),
+                Expanded(
+                  child: _NavItem(
+                    icon: Icons.search_outlined,
+                    activeIcon: Icons.search_rounded,
+                    label: AppStrings.navSearch,
+                    isSelected: _currentIndex == 1,
+                    onTap: () => _onTabSelected(1),
+                  ),
+                ),
+                Expanded(
+                  child: _AddButton(
+                    isSelected: _currentIndex == 2,
+                    onTap: () => _onTabSelected(2),
+                  ),
+                ),
+                Expanded(
+                  child: _NavItem(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    activeIcon: Icons.chat_bubble_rounded,
+                    label: AppStrings.navChat,
+                    isSelected: _currentIndex == 3,
+                    onTap: () => _onTabSelected(3),
+                    unreadCount: chatUnreadCount,
+                  ),
+                ),
+                Expanded(
+                  child: _NavItem(
+                    icon: Icons.person_outline_rounded,
+                    activeIcon: Icons.person_rounded,
+                    label: AppStrings.navProfile,
+                    isSelected: _currentIndex == 4,
+                    onTap: () => _onTabSelected(4),
+                  ),
+                ),
+              ],
             ),
           ),
-          ),
-          // ── Notification bell overlay ──────────────────────────────────
-          Positioned(
-            right: 8,
-            top: -8,
-            child: GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/notifications'),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  gradient: notificationCount > 0
-                      ? AppColors.primaryGradient
-                      : LinearGradient(colors: [
-                          Colors.grey.shade300,
-                          Colors.grey.shade400,
-                        ]),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: (notificationCount > 0
-                              ? AppColors.primary
-                              : Colors.grey)
-                          .withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.notifications_rounded,
-                        color: Colors.white, size: 18),
-                    if (notificationCount > 0)
-                      Positioned(
-                        right: -4,
-                        top: -4,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            notificationCount > 9
-                                ? '9+'
-                                : '$notificationCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
         ),
       ),
     );
@@ -300,14 +197,14 @@ class BottomNavScreenState extends State<BottomNavScreen> {
           child: SafeArea(
             right: false,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSizes.s16),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(
                 children: [
                   _buildSidebarLogo(theme),
-                  const SizedBox(height: AppSizes.s20),
+                  const SizedBox(height: 12),
                   Container(
-                    width: AppSizes.avatarMd,
-                    height: AppSizes.avatarMd,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: user?.avatarUrl == null
@@ -416,7 +313,7 @@ class BottomNavScreenState extends State<BottomNavScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(height: AppSizes.s8),
+                  const SizedBox(height: 4),
                   IconButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -536,7 +433,6 @@ class _NavItemState extends State<_NavItem>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isSelected = widget.isSelected;
 
     return GestureDetector(
@@ -564,10 +460,8 @@ class _NavItemState extends State<_NavItem>
                       key: ValueKey(isSelected),
                       size: 22,
                       color: isSelected
-                          ? Colors.white
-                          : theme.brightness == Brightness.dark
-                              ? Colors.white54
-                              : AppColors.textMuted,
+                          ? const Color(0xFFC54B8C)
+                          : AppColors.textSecondary,
                     ),
                   ),
                   if (widget.unreadCount > 0)
@@ -585,10 +479,8 @@ class _NavItemState extends State<_NavItem>
                   fontSize: 10,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
-                      ? Colors.white
-                      : theme.brightness == Brightness.dark
-                          ? Colors.white54
-                          : AppColors.textMuted,
+                      ? const Color(0xFFC54B8C)
+                      : AppColors.textSecondary,
                 ),
                 child: Text(widget.label),
               ),
@@ -638,6 +530,10 @@ class _AddButtonState extends State<_AddButton>
 
   @override
   Widget build(BuildContext context) {
+    final isSelected = widget.isSelected;
+    final activeColor = const Color(0xFFC54B8C);
+    final color = isSelected ? activeColor : AppColors.textSecondary;
+
     return GestureDetector(
       onTap: () {
         widget.onTap();
@@ -651,38 +547,38 @@ class _AddButtonState extends State<_AddButton>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.4),
+                      color: activeColor.withValues(alpha: 0.35),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: AnimatedRotation(
-                  duration: const Duration(milliseconds: 300),
-                  turns: widget.isSelected ? 0.125 : 0.0,
-                  child: const Icon(
-                    Icons.add_rounded,
-                    color: Colors.white,
-                    size: 26,
+                child: Center(
+                  child: AnimatedRotation(
+                    duration: const Duration(milliseconds: 300),
+                    turns: isSelected ? 0.125 : 0.0,
+                    child: const Icon(
+                      Icons.add_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 3),
-              SizedBox(
-                height: 14,
-                child: Text(
-                  '',
-                  style: GoogleFonts.poppins(fontSize: 10),
+              Text(
+                'Sell / Swap',
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: color,
                 ),
               ),
             ],

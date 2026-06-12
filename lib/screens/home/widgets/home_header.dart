@@ -326,28 +326,26 @@ class _NotificationBell extends StatelessWidget {
       child: Container(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.90),
-          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-          border: Border.all(color: AppColors.border),
-          boxShadow: AppColors.softShadow,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFE8F0), // Soft pink circular background
+          shape: BoxShape.circle,
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
             const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.textSecondary,
-              size: 22,
+              Icons.notifications_none_rounded, // Outline bell matching screenshot
+              color: AppColors.textPrimary,
+              size: 24,
             ),
             if (count > 0)
               Positioned(
-                top: 6,
-                right: 6,
+                top: 4,
+                right: 4,
                 child: Container(
-                  padding: const EdgeInsets.all(3),
+                  padding: const EdgeInsets.all(4),
                   decoration: const BoxDecoration(
-                    color: AppColors.error,
+                    color: AppColors.error, // Red badge
                     shape: BoxShape.circle,
                   ),
                   child: Text(
